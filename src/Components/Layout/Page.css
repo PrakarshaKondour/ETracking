@@ -1,0 +1,43 @@
+/* simple shared page styles */
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  background: transparent;
+}
+.page .panel {
+  background: var(--card, #fff);
+  border-radius:10px;
+  padding:16px;
+  box-shadow: var(--shadow, 0 8px 24px rgba(7,10,25,0.06));
+  margin-bottom:16px;
+}
+.page .grid {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:12px;
+}
+.page .stat {
+  padding:12px;
+  border-radius:8px;
+  background: linear-gradient(180deg,#fff,#fbfbff);
+  border:1px solid rgba(2,6,23,0.04);
+}
+.page table {
+  width:100%;
+  border-collapse:collapse;
+}
+.page th, .page td {
+  padding:10px 8px;
+  border-bottom:1px solid rgba(2,6,23,0.04);
+  text-align:left;
+  font-size:14px;
+}
+.page thead th{
+  text-transform:uppercase;
+  font-size:12px;
+  color:var(--muted,#6b7280);
+}
+@media (max-width:900px){
+  .page .grid{ grid-template-columns: 1fr; }
+}
