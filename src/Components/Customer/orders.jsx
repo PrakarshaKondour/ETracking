@@ -1,21 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
+import { apiCall } from '../../utils/api';
 
 const CustomerOrders = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     let mounted = true;
     async function load(){
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const username = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).username : '';
-        const res = await fetch(`${API}/api/customer/orders`, { headers: { 'x-user-role': role, 'x-user': username }});
-        const json = await res.json();
+        const json = await apiCall('/api/customer/orders');
         if (!mounted) return;
-        if (res.ok) setData(json.data || []);
+        setData(json.data || []);
       } catch (e) { console.error(e); }
       finally { if (mounted) setLoading(false); }
     }
