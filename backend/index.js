@@ -4,9 +4,9 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const connectDB = require('./db');
-const Admin = require('./models/Admin');
-const Vendor = require('./models/Vendor');
-const Customer = require('./models/Customer');
+const Admin = require('./models/admin');
+const Vendor = require('./models/vendor');
+const Customer = require('./models/customer');
 
 const app = express();
 app.use(cors());

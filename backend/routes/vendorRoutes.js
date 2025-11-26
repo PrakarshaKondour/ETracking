@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Vendor = require('../models/Vendor');
+const Vendor = require('../models/vendor');
 const Order = require('../models/Order');
 
 function requireRole(role) {

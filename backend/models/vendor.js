@@ -6,6 +6,8 @@ const VendorSchema = new mongoose.Schema({
   password: String,
   companyName: String,
   phone: String,
+  status: { type: String, enum: ['pending', 'approved', 'held', 'declined'], default: 'pending' },
+  lastActivityAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Vendor', VendorSchema);

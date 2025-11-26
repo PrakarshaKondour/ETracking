@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
+// ✅ NEW WAY (should be)
+import { apiCall } from '../../utils/api';
 
+
+// Token is automatically included!
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -9,7 +13,7 @@ const AdminDashboard = () => {
     async function load() {
       try {
         const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const res = await fetch(`${API}/api/admin/dashboard`, { headers: { 'x-user-role': role }});
+        const res = await apiCall('/api/admin/dashboard');
         const d = await res.json();
         setStats(d?.data?.stats || null);
       } catch (err) { console.error(err); }

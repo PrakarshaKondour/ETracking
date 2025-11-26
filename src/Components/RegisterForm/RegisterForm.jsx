@@ -38,7 +38,11 @@ const RegisterForm = () => {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
-        window.alert('Registered. Redirecting to login.');
+        if (role === 'vendor') {
+          window.alert('Registered. Your vendor account is pending admin approval. You will be notified once approved.');
+        } else {
+          window.alert('Registered. Redirecting to login.');
+        }
         navigate('/login', { replace: true });
       } else {
         setError(data.message || 'Registration failed');

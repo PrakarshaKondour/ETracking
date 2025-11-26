@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
+// ✅ NEW WAY (should be)
+import { apiCall } from '../../utils/api';
 
+// Token is automatically included!
 const VendorDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +23,7 @@ const VendorDashboard = () => {
     async function load(){
       try {
         const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const res = await fetch(`${API}/api/vendor/dashboard`, { headers: { 'x-user-role': role, 'x-user': username }});
+        const res = await apiCall('/api/vendor/dashboard');
         const json = await res.json();
         if (!mounted) return;
         if (res.ok) setData(json.data || {});

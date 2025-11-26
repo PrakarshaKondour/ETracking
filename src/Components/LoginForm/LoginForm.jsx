@@ -25,8 +25,8 @@ const LoginForm = () => {
             const data = await res.json().catch(() => ({}));
 
             if (res.ok && data.ok) {
-                // persist role + user based on remember checkbox
-                setAuth({ role: data.role, user: data.user }, remember);
+                // persist role + user + token based on remember checkbox
+                setAuth({ role: data.role, user: data.user, token: data.token }, remember);
                 navigate(`/${data.role}`, { replace: true });
                 return;
             }

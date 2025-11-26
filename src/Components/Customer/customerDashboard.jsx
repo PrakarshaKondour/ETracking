@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
+import { apiCall } from '../../utils/api';
 
 const CustomerDashboard = () => {
   const [data, setData] = useState(null);
@@ -12,7 +13,7 @@ const CustomerDashboard = () => {
       try {
         const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
         const username = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).username : '';
-        const res = await fetch(`${API}/api/customer/dashboard`, { headers: { 'x-user-role': role, 'x-user': username }});
+        const res = await apiCall('/api/customer/dashboard');
         const json = await res.json();
         if (!mounted) return;
         if (res.ok) setData(json.data || {});

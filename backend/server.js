@@ -4,11 +4,12 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const connectDB = require('./db');
+const { generateToken } = require('./middleware/authMiddleware');
 
 // require models (match actual filenames in your models folder)
-const Admin = require('./models/Admin');
-const Vendor = require('./models/Vendor');
-const Customer = require('./models/Customer');
+const Admin = require('./models/admin');
+const Vendor = require('./models/vendor');
+const Customer = require('./models/customer');
 const Order = require('./models/Order');
 
 // api route files you already added
@@ -42,8 +43,8 @@ async function seed() {
 
     if (vCount === 0) {
       await Vendor.insertMany([
-        { username: 'vendorjoe', email: 'joe@vendor.com', password: 'vendorpass', companyName: 'Joe Supplies', phone: '555-1001' },
-        { username: 'vendoranna', email: 'anna@vendor.com', password: 'annapass', companyName: 'Anna Goods', phone: '555-1002' },
+        { username: 'vendorjoe', email: 'joe@vendor.com', password: 'vendorpass', companyName: 'Joe Supplies', phone: '555-1001', status: 'approved', lastActivityAt: new Date() },
+        { username: 'vendoranna', email: 'anna@vendor.com', password: 'annapass', companyName: 'Anna Goods', phone: '555-1002', status: 'approved', lastActivityAt: new Date() },
       ]);
       console.log('Inserted vendor seeds');
     } else console.log('Vendors exist; skipping vendor seed');
@@ -109,8 +110,18 @@ app.post('/login', async (req, res) => {
     const { role, user } = found;
     if (user.password !== password) return res.status(401).json({ ok: false, message: 'Invalid password' });
 
+    // If vendor, check their status
+    if (role === 'vendor') {
+      if (user.status === 'pending') return res.status(403).json({ ok: false, message: 'Vendor account pending admin approval' });
+      if (user.status === 'held') return res.status(403).json({ ok: false, message: 'Your vendor account has been put on hold. Please contact admin.' });
+      if (user.status === 'declined') return res.status(403).json({ ok: false, message: 'Your vendor application has been declined.' });
+      // Update lastActivityAt for approved vendors
+      Vendor.findOneAndUpdate({ username }, { lastActivityAt: new Date() }).catch(err => console.error('Activity update error:', err));
+    }
+
     const { password: pw, ...userWithoutPassword } = user;
-    return res.json({ ok: true, role, user: userWithoutPassword });
+    const token = generateToken({ ...userWithoutPassword, role });
+    return res.json({ ok: true, role, user: userWithoutPassword, token });
   } catch (err) {
     console.error('Login error', err);
     return res.status(500).json({ ok: false, message: 'Server error' });
@@ -126,7 +137,7 @@ app.post('/register', async (req, res) => {
     if (await usernameExists(username)) return res.status(409).json({ ok: false, message: 'Username already exists' });
 
     let doc;
-    if (role === 'vendor') doc = new Vendor({ username, email, password, companyName, phone });
+    if (role === 'vendor') doc = new Vendor({ username, email, password, companyName, phone, status: 'pending' });
     else doc = new Customer({ username, email, password, fullName, address, phone });
 
     await doc.save();
