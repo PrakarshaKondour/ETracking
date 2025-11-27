@@ -63,6 +63,8 @@ app.post('/login', async (req, res) => {
     let userId;
     if (user._id && typeof user._id.toString === 'function') {
       userId = user._id.toString();
+      console.log("📥 Login request received:", username, user.password);
+
     } else if (user._id) {
       userId = String(user._id);
     } else {
