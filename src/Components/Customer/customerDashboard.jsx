@@ -8,45 +8,48 @@ const CustomerDashboard = () => {
 
   useEffect(() => {
     let mounted = true;
-    async function load(){
+    async function load() {
       try {
-        const json = await apiCall('/api/customer/dashboard');
+        const res = await apiCall('/api/customer/dashboard');
         if (!mounted) return;
-        setData(json.data || {});
-      } catch (e) { console.error(e); }
-      finally { if (mounted) setLoading(false); }
+        setData(res.data || {});
+      } catch (e) {
+        console.error("Dashboard fetch error:", e);
+        if (mounted) setData({});
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
     load();
     return () => { mounted = false; };
   }, []);
 
-  if (loading) return <div className="page"><div className="panel">Loading…</div></div>;
+  if (loading) return <div className="page"><div className="panel">Loading dashboard…</div></div>;
 
   return (
     <div className="page">
       <h2>Customer Dashboard</h2>
-      <div className="panel">
-        <h4>Recent Orders</h4>
-        { (data?.recentOrders || []).length === 0
-          ? <div>No recent orders.</div>
-          : <table>
-              <thead><tr><th>ID</th><th>Vendor</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
-              <tbody>
-                {(data.recentOrders || []).map(o => (
-                  <tr key={o._id}>
-                    <td>{o._id.slice(-8)}</td>
-                    <td>{o.vendorUsername}</td>
-                    <td>${(o.total || 0).toFixed(2)}</td>
-                    <td>{o.status}</td>
-                    <td>{new Date(o.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-        }
+      <div className="grid">
+        <div className="panel stat">
+          <h4>Total Orders</h4>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{data?.totalOrders ?? 0}</div>
+        </div>
+        <div className="panel stat">
+          <h4>Total Spent</h4>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>${(data?.totalSpent || 0).toFixed(2)}</div>
+        </div>
+        <div className="panel stat">
+          <h4>Recent Orders</h4>
+          <div style={{ fontSize: 14 }}>
+            {data?.recentOrders?.length
+              ? data.recentOrders.map(o => <div key={o._id}>Order #{o._id} – ${o.total}</div>)
+              : 'No recent orders'}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 export default CustomerDashboard;
+

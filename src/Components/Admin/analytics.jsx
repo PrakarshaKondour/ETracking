@@ -8,16 +8,38 @@ const AdminAnalytics = () => {
 
   useEffect(() => {
     let mounted = true;
-    async function load(){
+
+    async function load() {
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const res = await fetch(`${API}/api/admin/analytics`, { headers: { 'x-user-role': role }});
+        const token =
+          localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+        console.log("🔐 Token sent:", token?.slice(0, 20));
+
+        const res = await fetch(`${API}/api/admin/analytics`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
         const json = await res.json();
+
         if (!mounted) return;
-        if (res.ok) setData(json.data || {});
-      } catch (e) { console.error(e); }
-      finally { if (mounted) setLoading(false); }
+
+        if (res.ok) {
+          setData(json.data || {});
+        } else {
+          console.error("Analytics error:", json);
+        }
+
+      } catch (e) {
+        console.error("Analytics fetch error", e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
+
     load();
     return () => { mounted = false; };
   }, []);
@@ -30,15 +52,15 @@ const AdminAnalytics = () => {
       <div className="grid">
         <div className="panel stat">
           <h4>Total Orders</h4>
-          <div style={{fontSize:22,fontWeight:700}}>{data?.totalOrders ?? '—'}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{data?.totalOrders ?? '—'}</div>
         </div>
         <div className="panel stat">
           <h4>Revenue</h4>
-          <div style={{fontSize:22,fontWeight:700}}>${(data?.revenue || 0).toFixed(2)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>${(data?.revenue || 0).toFixed(2)}</div>
         </div>
         <div className="panel stat">
           <h4>Other</h4>
-          <div style={{fontSize:16}}>—</div>
+          <div style={{ fontSize: 16 }}>—</div>
         </div>
       </div>
     </div>

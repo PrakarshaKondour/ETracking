@@ -1,49 +1,62 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
+import { apiCall } from '../../utils/api';
 
 const VendorOrders = () => {
-  const [data, setData] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     let mounted = true;
-    async function load(){
+    async function load() {
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const username = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).username : '';
-        const res = await fetch(`${API}/api/vendor/orders`, { headers: { 'x-user-role': role, 'x-user': username }});
-        const json = await res.json();
+        const res = await apiCall('/api/vendor/orders');
         if (!mounted) return;
-        if (res.ok) setData(json.data || []);
-      } catch (e) { console.error(e); }
-      finally { if (mounted) setLoading(false); }
+        setOrders(res.orders || []);
+      } catch (e) {
+        console.error("Orders fetch error:", e);
+        if (mounted) setOrders([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
     load();
     return () => { mounted = false; };
   }, []);
 
   if (loading) return <div className="page"><div className="panel">Loading orders…</div></div>;
-  if (!data.length) return <div className="page"><div className="panel">No orders for you yet.</div></div>;
 
   return (
     <div className="page">
-      <h2>Orders</h2>
+      <h2>Vendor Orders</h2>
       <div className="panel">
-        <table>
-          <thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>
-            {data.map(o => (
-              <tr key={o._id}>
-                <td>{o._id.slice(-8)}</td>
-                <td>{o.customerUsername}</td>
-                <td>${(o.total || 0).toFixed(2)}</td>
-                <td>{o.status}</td>
-                <td>{new Date(o.createdAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {orders.length ? (
+          <div>
+            <p style={{ marginBottom: 12, fontWeight: 600 }}>Total Orders: {orders.length}</p>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>Order ID</th>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>Items</th>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>Total</th>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map(o => (
+                  <tr key={o._id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '8px' }}>{o._id?.slice(-8) || 'N/A'}</td>
+                    <td style={{ padding: '8px' }}>{o.items?.length || 0} items</td>
+                    <td style={{ padding: '8px' }}>${(o.total || 0).toFixed(2)}</td>
+                    <td style={{ padding: '8px' }}>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div>No orders found</div>
+        )}
       </div>
     </div>
   );

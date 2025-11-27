@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const VendorSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
@@ -10,4 +10,4 @@ const VendorSchema = new mongoose.Schema({
   lastActivityAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
-module.exports = mongoose.model('Vendor', VendorSchema);
+export default mongoose.model('Vendor', VendorSchema);
