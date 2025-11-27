@@ -88,6 +88,7 @@ router.get('/orders', async (req, res) => {
 });
 
 // Get analytics
+// Get analytics
 router.get('/analytics', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -95,15 +96,21 @@ router.get('/analytics', async (req, res) => {
     }
 
     const orders = await Order.find({});
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+    // Ensure numeric total
+    const revenue = orders.reduce((sum, order) => {
+      const amount = Number(order.total) || 0;
+      return sum + amount;
+    }, 0);
+
     const totalOrders = orders.length;
 
     res.json({ 
       ok: true, 
       data: { 
-        totalRevenue, 
+        revenue,        // <-- MATCHES frontend
         totalOrders,
-        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0
+        averageOrderValue: totalOrders > 0 ? revenue / totalOrders : 0
       } 
     });
   } catch (error) {
@@ -111,5 +118,6 @@ router.get('/analytics', async (req, res) => {
     res.status(500).json({ ok: false, message: 'Failed to fetch analytics' });
   }
 });
+
 
 export default router;
