@@ -11,9 +11,10 @@ const AdminCustomers = () => {
     let mounted = true;
     async function load(){
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const res = await fetch(`${API}/api/admin/customers`, { headers: { 'x-user-role': role }});
-        const json = await res.json();
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`${API}/api/admin/customers`, { headers });
+        const json = await res.json().catch(() => ({}));
         if (!mounted) return;
         if (!res.ok) { setErr(json.message || 'Failed to load'); }
         else setData(json.data || []);

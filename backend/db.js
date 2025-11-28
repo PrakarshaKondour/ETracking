@@ -1,16 +1,24 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
 
-async function connectDB() {
-  const uri = process.env.MONGO_URI;
-  if (!uri) throw new Error('MONGO_URI not set in .env');
-  try{
-    await mongoose.connect(uri);
-    console.log('MongoDB connected');
-  } catch (err) {
-    console.error('MongoDB connection error', err);
-    throw err;
+dotenv.config();
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/etracking';
+
+const connectDB = async () => {
+  try {
+    console.log('🔄 Connecting to MongoDB...');
+    console.log('📍 URI:', MONGO_URI);
+
+    // Mongoose v7+ does NOT need any options
+    await mongoose.connect(MONGO_URI);
+
+    console.log('✅ MongoDB connected successfully');
+    return mongoose.connection;
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message);
+    process.exit(1);
   }
-}
+};
 
-module.exports = connectDB;
+export default connectDB;

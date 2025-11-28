@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import '../../Components/Layout/Page.css';
-// ✅ NEW WAY (should be)
 import { apiCall } from '../../utils/api';
 
-// Token is automatically included!
 const VendorDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   const username = (() => {
     try {
@@ -20,41 +17,58 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     let mounted = true;
-    async function load(){
+    async function load() {
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
         const res = await apiCall('/api/vendor/dashboard');
-        const json = await res.json();
         if (!mounted) return;
-        if (res.ok) setData(json.data || {});
-        else setData({});
-      } catch (e) { console.error(e); if (mounted) setData({}); }
-      finally { if (mounted) setLoading(false); }
+        setData(res.data || {});
+      } catch (e) {
+        console.error("Dashboard error:", e);
+        if (mounted) setData({});
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
     load();
     return () => { mounted = false; };
-  }, [API, username]);
+  }, [username]);
 
   if (loading) return <div className="page"><div className="panel">Loading…</div></div>;
 
-  const totalOrders = data?.totalOrders ?? 0;
-  const vendorName = data?.vendor ?? username;
-
   return (
     <div className="page">
-      <h2>Hi, {vendorName}</h2>
-      <div className="grid" style={{marginTop:12}}>
+      <h2>Hi, {username}!</h2>
+      <div className="grid" style={{ marginTop: 12 }}>
         <div className="panel stat">
           <h4>Total Orders</h4>
-          <div style={{fontSize:22,fontWeight:700}}>{totalOrders}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>{data?.totalOrders ?? 0}</div>
         </div>
         <div className="panel stat">
-          <h4>Quick Note</h4>
-          <div style={{fontSize:14}}>View full order list for details</div>
+          <h4>Total Revenue</h4>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>${(data?.totalRevenue || 0).toFixed(2)}</div>
         </div>
         <div className="panel stat">
-          <h4>Profile</h4>
-          <div style={{fontSize:14}}>{vendorName}</div>
+          <h4>Recent Orders</h4>
+          <div style={{ fontSize: 14 }}>
+            {data?.recentOrders?.length
+              ? (
+                <div>
+                  {data.recentOrders.map(o => (
+                    <div key={o._id} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #eee' }}>
+                      <div><strong>Order #{o._id?.slice(-8) || 'N/A'}</strong></div>
+                      <div>Total: ${(o.total || 0).toFixed(2)}</div>
+                      {o.createdAt && <div style={{ fontSize: 12, color: '#666' }}>{new Date(o.createdAt).toLocaleDateString()}</div>}
+                    </div>
+                  ))}
+                  {data.totalOrders > data.recentOrders.length && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: '#666', fontStyle: 'italic' }}>
+                      Showing {data.recentOrders.length} of {data.totalOrders} orders. View all orders in the Orders page.
+                    </div>
+                  )}
+                </div>
+              )
+              : 'No recent orders'}
+          </div>
         </div>
       </div>
     </div>

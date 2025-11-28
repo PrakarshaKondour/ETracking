@@ -4,76 +4,107 @@ import './LoginForm.css';
 import { setAuth } from '../../utils/auth';
 
 const LoginForm = () => {
-    const navigate = useNavigate();
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [remember, setRemember] = useState(false);
-    const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-    const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const API = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        try {
-            const res = await fetch(`${API}/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-            const data = await res.json().catch(() => ({}));
+    try {
+      console.log('🔐 Attempting login for:', username);
 
-            if (res.ok && data.ok) {
-                // persist role + user + token based on remember checkbox
-                setAuth({ role: data.role, user: data.user, token: data.token }, remember);
-                navigate(`/${data.role}`, { replace: true });
-                return;
-            }
+      const res = await fetch(`${API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-            if (res.status === 404) {
-                setError('User unavailable. Please register.');
-                return;
-            }
-            if (res.status === 401) {
-                setError('Invalid credentials. Please check your password.');
-                return;
-            }
+      console.log('📡 Response status:', res.status);
 
-            setError(data.message || 'Login failed. Please try again.');
-        } catch (error) {
-            console.error('Error during login:', error);
-            setError('Server error. Please try again later.');
-        }
-    };
+      const data = await res.json();
+      console.log('📦 Response data:', data);
 
-    return (
-      <div className='wrapper'>
-        <form onSubmit={handleSubmit}>
-          <h2>Login</h2>
-          <div className='input-field'>
-            <input value={username} onChange={e => setUsername(e.target.value)} type="text" placeholder="Username" required />
-          </div>
-          <div className='input-field'>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" required />
-          </div>
+      if (res.ok && data.ok) {
+        console.log('✅ Login successful for', username);
+        setAuth({ role: data.role, user: data.user, token: data.token }, remember);
+        navigate(`/${data.role}`, { replace: true });
+        return;
+      }
 
-          <div className='remember-forgot'>
-            <label>
-              <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} /> Remember me
-            </label>
-            <a href="#">Forgot Password?</a>
-          </div>
+      if (res.status === 404) {
+        setError('User not found. Please register first.');
+        return;
+      }
+      if (res.status === 401) {
+        setError('Invalid credentials. Please check your username and password.');
+        return;
+      }
 
-          {error && <div style={{ color: 'crimson', marginBottom: 12 }}>{error}</div>}
+      setError(data.message || 'Login failed. Please try again.');
+    } catch (error) {
+      console.error('❌ Error during login:', error);
+      setError('Server error. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          <button type="submit" className="btn">Login</button>
-          <div className='register-link'>
-            <p>Don't have an account? <Link to="/register">Register</Link></p>
-          </div>
-        </form>
-      </div>
-    );
+  return (
+    <div className='wrapper'>
+      <form onSubmit={handleSubmit}>
+        <h2>Login</h2>
+        <div className='input-field'>
+          <input 
+            value={username} 
+            onChange={e => setUsername(e.target.value)} 
+            type="text" 
+            placeholder="Username" 
+            required 
+            disabled={loading}
+          />
+        </div>
+        <div className='input-field'>
+          <input 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            type="password" 
+            placeholder="Password" 
+            required 
+            disabled={loading}
+          />
+        </div>
+
+        <div className='remember-forgot'>
+          <label>
+            <input 
+              type="checkbox" 
+              checked={remember} 
+              onChange={e => setRemember(e.target.checked)}
+              disabled={loading}
+            /> Remember me
+          </label>
+          <a href="#">Forgot Password?</a>
+        </div>
+
+        {error && <div style={{ color: 'crimson', marginBottom: 12 }}>{error}</div>}
+
+        <button type="submit" className="btn" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+        <div className='register-link'>
+          <p>Don't have an account? <Link to="/register">Register</Link></p>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 export default LoginForm;

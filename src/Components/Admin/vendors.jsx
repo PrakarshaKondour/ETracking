@@ -11,9 +11,10 @@ const AdminVendors = () => {
     let mounted = true;
     async function load(){
       try {
-        const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-        const res = await fetch(`${API}/api/admin/vendors`, { headers: { 'x-user-role': role }});
-        const json = await res.json();
+        const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`${API}/api/admin/vendors`, { headers });
+        const json = await res.json().catch(() => ({}));
         if (!mounted) return;
         if (!res.ok) setErr(json.message || 'Failed to load vendors');
         else setData(json.data || []);
@@ -29,16 +30,16 @@ const AdminVendors = () => {
 
   const handleApprove = async (username) => {
     try {
-      const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-      console.log('Approving vendor:', username, 'with role:', role);
-      const res = await fetch(`${API}/api/admin/vendors/${username}/approve`, { method: 'PATCH', headers: { 'x-user-role': role } });
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      console.log('Approving vendor:', username);
+      const res = await fetch(`${API}/api/admin/vendors/${username}/approve`, { method: 'PATCH', headers });
       const json = await res.json().catch(() => ({}));
       console.log('Approve response:', res.status, json);
       if (!res.ok) {
         alert(json.message || `Failed to approve (${res.status})`);
         return;
       }
-      // Update with response data or fallback to status change
       const updatedVendor = json.data || { status: 'approved' };
       setData(prev => prev.map(p => p.username === username ? { ...p, ...updatedVendor } : p));
       alert('Vendor approved successfully!');
@@ -51,8 +52,9 @@ const AdminVendors = () => {
   const handleDecline = async (username) => {
     if (!window.confirm('Are you sure you want to decline this vendor?')) return;
     try {
-      const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-      const res = await fetch(`${API}/api/admin/vendors/${username}/decline`, { method: 'PATCH', headers: { 'x-user-role': role } });
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API}/api/admin/vendors/${username}/decline`, { method: 'PATCH', headers });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(json.message || 'Failed to decline');
@@ -70,8 +72,9 @@ const AdminVendors = () => {
   const handleHold = async (username) => {
     if (!window.confirm('Put this vendor on hold?')) return;
     try {
-      const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-      const res = await fetch(`${API}/api/admin/vendors/${username}/hold`, { method: 'PATCH', headers: { 'x-user-role': role } });
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API}/api/admin/vendors/${username}/hold`, { method: 'PATCH', headers });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(json.message || 'Failed to put vendor on hold');
@@ -89,8 +92,9 @@ const AdminVendors = () => {
   const handleReactivate = async (username) => {
     if (!window.confirm('Reactivate this vendor?')) return;
     try {
-      const role = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-      const res = await fetch(`${API}/api/admin/vendors/${username}/reactivate`, { method: 'PATCH', headers: { 'x-user-role': role } });
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API}/api/admin/vendors/${username}/reactivate`, { method: 'PATCH', headers });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(json.message || 'Failed to reactivate');
