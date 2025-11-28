@@ -1,169 +1,164 @@
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import connectDB from './db.js';
+import adminRoutes from './routes/adminRoutes.js';
+import customerRoutes from './routes/customerRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
+import Admin from './models/admin.js';
+import Customer from './models/customer.js';
+import Vendor from './models/vendor.js';
 
-const connectDB = require('./db');
-const { generateToken } = require('./middleware/authMiddleware');
-
-// require models (match actual filenames in your models folder)
-const Admin = require('./models/admin');
-const Vendor = require('./models/vendor');
-const Customer = require('./models/customer');
-const Order = require('./models/Order');
-
-// api route files you already added
-const adminRoutes = require('./routes/adminRoutes');
-const vendorRoutes = require('./routes/vendorRoutes');
-const customerRoutes = require('./routes/customerRoutes');
+dotenv.config();
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 5000;
+
+// CORS: allow Authorization + optional x-user-role and x-user
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-role', 'x-user'],
+}));
+
 app.use(express.json());
 
-// ---------- SEED FUNCTION ----------
-async function seed() {
-  try {
-    console.log('Seeding: checking counts...');
-    const [aCount, vCount, cCount, oCount] = await Promise.all([
-      Admin.countDocuments().catch(() => 0),
-      Vendor.countDocuments().catch(() => 0),
-      Customer.countDocuments().catch(() => 0),
-      Order.countDocuments().catch(() => 0),
-    ]);
-    console.log(`Counts -> admins:${aCount} vendors:${vCount} customers:${cCount} orders:${oCount}`);
+// Connect to MongoDB FIRST
+connectDB();
 
-    if (aCount === 0) {
-      await Admin.insertMany([
-        { username: 'admin1', email: 'admin1@example.com', password: 'adminpass1' },
-        { username: 'superadmin', email: 'superadmin@example.com', password: 'superpass' },
-      ]);
-      console.log('Inserted admin seeds');
-    } else console.log('Admins exist; skipping admin seed');
-
-    if (vCount === 0) {
-      await Vendor.insertMany([
-        { username: 'vendorjoe', email: 'joe@vendor.com', password: 'vendorpass', companyName: 'Joe Supplies', phone: '555-1001', status: 'approved', lastActivityAt: new Date() },
-        { username: 'vendoranna', email: 'anna@vendor.com', password: 'annapass', companyName: 'Anna Goods', phone: '555-1002', status: 'approved', lastActivityAt: new Date() },
-      ]);
-      console.log('Inserted vendor seeds');
-    } else console.log('Vendors exist; skipping vendor seed');
-
-    if (cCount === 0) {
-      await Customer.insertMany([
-        { username: 'custsam', email: 'sam@customer.com', password: 'custpass', fullName: 'Sam Rogers', address: '123 Main St', phone: '555-2001' },
-        { username: 'jane_doe', email: 'jane@customer.com', password: 'janepass', fullName: 'Jane Doe', address: '456 Oak Ave', phone: '555-2002' },
-      ]);
-      console.log('Inserted customer seeds');
-    } else console.log('Customers exist; skipping customer seed');
-
-    if (oCount === 0) {
-      const orders = [
-        { customerUsername: 'custsam', vendorUsername: 'vendorjoe', items: [{ name: 'Widget', qty: 2, price: 9.99 }], total: 19.98, status: 'delivered' },
-        { customerUsername: 'jane_doe', vendorUsername: 'vendoranna', items: [{ name: 'Gadget', qty: 1, price: 29.99 }], total: 29.99, status: 'processing' },
-      ];
-      await Order.insertMany(orders);
-      console.log('Inserted order seeds');
-    } else console.log('Orders exist; skipping order seed');
-
-    console.log('Seeding completed');
-  } catch (err) {
-    console.error('Seeding error:', err);
-    throw err;
-  }
-}
-
-// ---------- HELPERS ----------
 async function findUserByUsername(username) {
-  if (!username) return null;
-  let user = await Admin.findOne({ username }).lean();
-  if (user) return { role: 'admin', user };
-  user = await Vendor.findOne({ username }).lean();
-  if (user) return { role: 'vendor', user };
-  user = await Customer.findOne({ username }).lean();
-  if (user) return { role: 'customer', user };
+  let user = await Admin.findOne({ username });
+  if (user) return { role: "admin", user };
+
+  user = await Customer.findOne({ username });
+  if (user) return { role: "customer", user };
+
+  user = await Vendor.findOne({ username });
+  if (user) return { role: "vendor", user };
+
   return null;
 }
 
-async function usernameExists(username) {
-  if (!username) return false;
-  const [admin, vendor, customer] = await Promise.all([
-    Admin.findOne({ username }).lean(),
-    Vendor.findOne({ username }).lean(),
-    Customer.findOne({ username }).lean(),
-  ]);
-  return !!(admin || vendor || customer);
-}
-
-// ---------- PUBLIC ROUTES ----------
-app.get('/', (req, res) => res.send('API running'));
-
-// login
 app.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body || {};
-    if (!username || !password) return res.status(400).json({ ok: false, message: 'Username and password required' });
+    const { username, password } = req.body;
 
-    const found = await findUserByUsername(username);
-    if (!found || !found.user) return res.status(404).json({ ok: false, message: 'User not found. Please register.' });
-
-    const { role, user } = found;
-    if (user.password !== password) return res.status(401).json({ ok: false, message: 'Invalid password' });
-
-    // If vendor, check their status
-    if (role === 'vendor') {
-      if (user.status === 'pending') return res.status(403).json({ ok: false, message: 'Vendor account pending admin approval' });
-      if (user.status === 'held') return res.status(403).json({ ok: false, message: 'Your vendor account has been put on hold. Please contact admin.' });
-      if (user.status === 'declined') return res.status(403).json({ ok: false, message: 'Your vendor application has been declined.' });
-      // Update lastActivityAt for approved vendors
-      Vendor.findOneAndUpdate({ username }, { lastActivityAt: new Date() }).catch(err => console.error('Activity update error:', err));
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, message: 'Username and password required' });
     }
 
-    const { password: pw, ...userWithoutPassword } = user;
-    const token = generateToken({ ...userWithoutPassword, role });
-    return res.json({ ok: true, role, user: userWithoutPassword, token });
+    const found = await findUserByUsername(username);
+    if (!found || !found.user) {
+      return res.status(404).json({ ok: false, message: 'User not found' });
+    }
+
+    const { user, role } = found;
+
+    if (user.password !== password) {
+      return res.status(401).json({ ok: false, message: 'Invalid password' });
+    }
+
+    // Convert MongoDB ObjectId to string for JWT payload - ensure it's unique
+    let userId;
+    if (user._id && typeof user._id.toString === 'function') {
+      userId = user._id.toString();
+      console.log("📥 Login request received:", username, user.password);
+
+    } else if (user._id) {
+      userId = String(user._id);
+    } else {
+      // Fallback: use username + timestamp for uniqueness (shouldn't happen)
+      userId = `${user.username}_${Date.now()}`;
+      console.warn('⚠️ User _id not found, using fallback ID for:', user.username);
+    }
+    
+    // Ensure userId is unique - add timestamp if needed (but it should already be unique from _id)
+    const payload = {
+      id: userId,
+      username: user.username,
+      email: user.email,
+      role: role,
+      iat: Math.floor(Date.now() / 1000) // Issued at time for additional uniqueness
+    };
+
+    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const token = jwt.sign(payload, secret, { expiresIn: '24h' });
+    
+    console.log('🔐 Generated JWT token for user:', user.username, 'Role:', role, 'User ID:', userId);
+    console.log('🔐 Token payload:', JSON.stringify(payload));
+    console.log('🔐 Token (first 50 chars):', token.slice(0, 50) + '...');
+
+    const userWithoutPassword = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: role
+    };
+
+    res.json({
+      ok: true,
+      role,
+      user: userWithoutPassword,
+      token
+    });
   } catch (err) {
     console.error('Login error', err);
     return res.status(500).json({ ok: false, message: 'Server error' });
   }
 });
 
-// register (only vendor/customer)
+// Register endpoint
 app.post('/register', async (req, res) => {
   try {
-    const { username, email, password, role, companyName, phone, fullName, address } = req.body || {};
-    if (!username || !email || !password || !role) return res.status(400).json({ ok: false, message: 'Missing required fields' });
-    if (role !== 'vendor' && role !== 'customer') return res.status(400).json({ ok: false, message: 'Only vendor and customer registration is allowed' });
-    if (await usernameExists(username)) return res.status(409).json({ ok: false, message: 'Username already exists' });
+    const { username, password, email, role } = req.body;
 
-    let doc;
-    if (role === 'vendor') doc = new Vendor({ username, email, password, companyName, phone, status: 'pending' });
-    else doc = new Customer({ username, email, password, fullName, address, phone });
+    if (!username || !password || !email || !role) {
+      return res.status(400).json({ ok: false, message: 'All fields required' });
+    }
 
-    await doc.save();
-    return res.status(201).json({ ok: true, message: 'Registered' });
-  } catch (err) {
-    console.error('Register error', err);
-    return res.status(500).json({ ok: false, message: 'Server error' });
+    let Model;
+
+    if (role === 'admin') {
+      Model = Admin;
+    } else if (role === 'customer') {
+      Model = Customer;
+    } else if (role === 'vendor') {
+      Model = Vendor;
+    } else {
+      return res.status(400).json({ ok: false, message: 'Invalid role' });
+    }
+
+    const existingUser = await Model.findOne({ username });
+    if (existingUser) {
+      return res.status(409).json({ ok: false, message: 'Username already exists' });
+    }
+
+    const user = new Model({ username, password, email, role });
+    await user.save();
+
+    res.json({
+      ok: true,
+      message: 'Registration successful',
+      role: role,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('❌ Register error:', error.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
   }
 });
 
-// ---------- MOUNT ROLE ROUTES (protected by header-based role middleware inside those files) ----------
+// API Routes
 app.use('/api/admin', adminRoutes);
-app.use('/api/vendor', vendorRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/vendor', vendorRoutes);
 
-// ---------- START SERVER ----------
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
-  try {
-    console.log('Starting server...');
-    await connectDB();
-    console.log('Mongoose readyState:', mongoose.connection.readyState); // 1 = connected
-    await seed();
-    console.log(`Server started on http://localhost:${PORT}`);
-  } catch (err) {
-    console.error('DB connection / seed error', err);
-    process.exit(1);
-  }
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
