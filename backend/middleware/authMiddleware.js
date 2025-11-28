@@ -1,41 +1,26 @@
-const jwt = require('jsonwebtoken');
-// Middleware to verify JWT token
-function verifyToken(req, res, next) {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) {
-    return res.status(401).json({ ok: false, message: 'No token provided' });
-  }
+import jwt from 'jsonwebtoken';
+
+export const authMiddleware = (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const authHeader = req.headers.authorization;
+    console.log('📨 Auth header received:', authHeader ? authHeader.slice(0, 30) + '...' : 'MISSING');
+    
+    const token = authHeader?.split(' ')[1]; // Extract "Bearer TOKEN"
+    
+    if (!token) {
+      console.log('❌ No token in authorization header');
+      return res.status(401).json({ ok: false, message: 'No token provided' });
+    }
+
+    console.log('🔐 Token received:', token.slice(0, 30) + '...');
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    console.log('✅ Token verified - User:', decoded.username, 'Role:', decoded.role, 'ID:', decoded.id);
+    
+    req.user = decoded; // Attach user info to request
     next();
-  } catch (err) {
+  } catch (error) {
+    console.error('❌ Token verification failed:', error.message);
     return res.status(401).json({ ok: false, message: 'Invalid or expired token' });
   }
-}
-// Middleware to check specific role
-function requireRole(role) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ ok: false, message: 'Unauthorized' });
-    }
-    if (req.user.role !== role) {
-      return res.status(403).json({ ok: false, message: 'Forbidden' });
-    }
-    next();
-  };
-}
-// Generate JWT token
-function generateToken(user) {
-  return jwt.sign(
-    {
-      userId: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }
-  );
-}
-module.exports = { verifyToken, requireRole, generateToken };
+};
