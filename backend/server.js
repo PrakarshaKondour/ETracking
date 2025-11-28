@@ -9,6 +9,8 @@ import vendorRoutes from './routes/vendorRoutes.js';
 import Admin from './models/admin.js';
 import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
+import './config/redis.js';
+
 
 dotenv.config();
 
