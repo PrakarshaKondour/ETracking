@@ -10,6 +10,7 @@ import Admin from './models/admin.js';
 import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
 import './config/redis.js';
+// import stuff guys(redis.js) from config
 
 
 dotenv.config();
