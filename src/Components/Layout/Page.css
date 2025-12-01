@@ -1,43 +1,710 @@
-/* simple shared page styles */
+/* Premium page container styles */
 .page {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  padding: 0 16px;
+}
+
+.page h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+/* Added page subtitle for context */
+.page .page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  font-weight: 400;
+}
+
+.page h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.page .panel {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
+  border: 1px solid var(--border-light);
+  transition: var(--transition-base);
+}
+
+.page .panel:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(45, 212, 191, 0.1);
+}
+
+/* Enhanced grid layout for stat cards */
+.page .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+/* Redesigned stat cards with better visual hierarchy */
+.page .stat {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(45, 212, 191, 0.02) 100%);
+  border-radius: 16px;
+  padding: 32px;
+  border: 1px solid var(--border-light);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Added elegant hover effect with scale and glow */
+.page .stat::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.page .stat:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(45, 212, 191, 0.3);
+}
+
+.page .stat:hover::before {
+  opacity: 1;
+}
+
+.page .stat h4 {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Added icon styling for stat headings */
+.page .stat h4::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.page .stat > div {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
+}
+
+/* Added value description styling */
+.page .stat .stat-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 12px;
+  font-weight: 400;
+}
+
+.page p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+/* Enhanced table styling for better readability */
+.page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.page th,
+.page td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  font-size: 14px;
+}
+
+.page thead th {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  background: var(--background-alt);
+  padding: 18px 16px;
+}
+
+.page tbody tr {
+  transition: var(--transition-base);
+}
+
+.page tbody tr:hover {
+  background: rgba(45, 212, 191, 0.03);
+  box-shadow: inset 1px 0 0 rgba(45, 212, 191, 0.1);
+}
+
+.page tbody td {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Enhanced recent orders section with card styling */
+.page .recent-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page .order-card {
+  padding: 16px;
+  background: rgba(45, 212, 191, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.08);
+  transition: all 0.2s ease;
+}
+
+.page .order-card:hover {
+  background: rgba(45, 212, 191, 0.05);
+  border-color: rgba(45, 212, 191, 0.15);
+  transform: translateX(4px);
+}
+
+.page .order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.page .order-card-id {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.page .order-card-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.page .order-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Adding vendor carousel styles */
+.page .vendor-carousel {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding: 20px 0;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.3) transparent;
+}
+
+.page .vendor-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+
+.page .vendor-carousel::-webkit-scrollbar-track {
   background: transparent;
 }
-.page .panel {
-  background: var(--card, #fff);
-  border-radius:10px;
-  padding:16px;
-  box-shadow: var(--shadow, 0 8px 24px rgba(7,10,25,0.06));
-  margin-bottom:16px;
+
+.page .vendor-carousel::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 191, 0.3);
+  border-radius: 3px;
 }
-.page .grid {
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:12px;
+
+.page .vendor-carousel::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 212, 191, 0.5);
 }
-.page .stat {
-  padding:12px;
-  border-radius:8px;
-  background: linear-gradient(180deg,#fff,#fbfbff);
-  border:1px solid rgba(2,6,23,0.04);
+
+/* Vendor card in carousel */
+.page .vendor-card {
+  min-width: 300px;
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(45, 212, 191, 0.02) 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
-.page table {
-  width:100%;
-  border-collapse:collapse;
+
+.page .vendor-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.1), transparent);
+  transition: left 0.5s ease;
 }
-.page th, .page td {
-  padding:10px 8px;
-  border-bottom:1px solid rgba(2,6,23,0.04);
-  text-align:left;
-  font-size:14px;
+
+.page .vendor-card:hover::before {
+  left: 100%;
 }
-.page thead th{
-  text-transform:uppercase;
-  font-size:12px;
-  color:var(--muted,#6b7280);
+
+.page .vendor-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--shadow-xl);
+  border-color: rgba(45, 212, 191, 0.3);
 }
-@media (max-width:900px){
-  .page .grid{ grid-template-columns: 1fr; }
+
+.page .vendor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.page .vendor-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.page .vendor-status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.page .vendor-status-badge.approved {
+  background: rgba(45, 212, 191, 0.15);
+  color: #1ca89f;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
+.page .vendor-status-badge.pending {
+  background: rgba(251, 146, 60, 0.15);
+  color: #c2410c;
+  border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.page .vendor-status-badge.held {
+  background: rgba(168, 85, 247, 0.15);
+  color: #7c3aed;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.page .vendor-status-badge.declined {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.page .vendor-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.page .vendor-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page .vendor-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.page .vendor-card-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Expanded vendor card content */
+.page .vendor-card.expanded {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  min-width: 300px;
+  z-index: 1000;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    rgba(45, 212, 191, 0.28) 100%
+  );
+  box-shadow: var(--shadow-xl);
+  border: 1px solid rgba(45, 212, 191, 0.45);
+}
+
+.page .vendor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.page .vendor-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Adding order card styles with status buttons */
+.page .orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.page .order-card-new {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(45, 212, 191, 0.02) 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.page .order-card-new:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(45, 212, 191, 0.2);
+}
+
+.page .order-card-header-new {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.page .order-id {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.page .order-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.page .order-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.page .order-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.page .order-detail-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.page .order-detail-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Order status and control section */
+.page .order-status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.page .order-status-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page .order-status-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.page .order-status-badge-new {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.page .order-status-badge-new.pending {
+  background: rgba(251, 146, 60, 0.15);
+  color: #c2410c;
+}
+
+.page .order-status-badge-new.processing {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1e40af;
+}
+
+.page .order-status-badge-new.shipped {
+  background: rgba(168, 85, 247, 0.15);
+  color: #7c3aed;
+}
+
+.page .order-status-badge-new.delivered {
+  background: rgba(45, 212, 191, 0.15);
+  color: #1ca89f;
+}
+
+.page .order-status-badge-new.cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+/* Status transition buttons */
+.page .status-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.page .status-btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.05) 0%, transparent 100%);
+  color: var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.page .status-btn:hover {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.15) 0%, rgba(45, 212, 191, 0.05) 100%);
+  border-color: rgba(45, 212, 191, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.15);
+}
+
+.page .status-btn:active {
+  transform: translateY(0);
+}
+
+.page .status-btn-icon {
+  font-size: 14px;
+}
+
+/* Customer/Vendor cards layout */
+.page .customers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.page .customer-card {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(45, 212, 191, 0.02) 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page .customer-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(45, 212, 191, 0.2);
+}
+
+.page .customer-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.page .customer-username {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page .customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page .info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(45, 212, 191, 0.03);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.page .info-row-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.page .info-row-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* Responsive grid */
+@media (max-width: 768px) {
+  .page .grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .page h2 {
+    font-size: 28px;
+  }
+  .page .panel {
+    padding: 20px;
+  }
+  .page .stat {
+    padding: 24px;
+  }
+  .page .stat > div {
+    font-size: 32px;
+  }
+  .page .vendor-carousel {
+    gap: 16px;
+    padding: 16px 0;
+  }
+
+  .page .vendor-card {
+    min-width: 280px;
+    padding: 20px;
+  }
+
+  .page .orders-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .page .customers-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .page .vendor-card.expanded {
+    width: 95%;
+    max-height: 90vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 0 12px;
+  }
+  .page .panel {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .page .stat {
+    padding: 20px;
+  }
+  .page .stat > div {
+    font-size: 28px;
+  }
+  .page th,
+  .page td {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  .page h2 {
+    font-size: 22px;
+  }
+  .page .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .page .vendor-carousel {
+    gap: 12px;
+  }
+
+  .page .vendor-card {
+    min-width: 260px;
+    padding: 16px;
+  }
+
+  .page .vendor-card-name {
+    font-size: 16px;
+  }
+
+  .page .status-buttons {
+    flex-direction: column;
+  }
+
+  .page .status-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }

@@ -1,3 +1,4 @@
+// adminRoutes.js
 import express from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import Admin from '../models/admin.js';
@@ -7,15 +8,14 @@ import Order from '../models/Order.js';
 
 const router = express.Router();
 
-// Apply auth middleware to ALL admin routes
+// ✅ Apply auth middleware to ALL admin routes
 router.use(authMiddleware);
 
-// Dashboard endpoint
+// ====== DASHBOARD ======
 router.get('/dashboard', async (req, res) => {
   try {
     console.log('📊 Admin dashboard request from:', req.user.username);
-    
-    // Verify user is admin
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({ ok: false, message: 'Admin access required' });
     }
@@ -28,13 +28,8 @@ router.get('/dashboard', async (req, res) => {
     res.json({
       ok: true,
       data: {
-        stats: {
-          admins,
-          customers,
-          vendors,
-          orders
-        }
-      }
+        stats: { admins, customers, vendors, orders },
+      },
     });
   } catch (error) {
     console.error('Dashboard error:', error);
@@ -42,7 +37,7 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-// Get all customers
+// ====== LIST CUSTOMERS ======
 router.get('/customers', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -57,7 +52,7 @@ router.get('/customers', async (req, res) => {
   }
 });
 
-// Get all vendors
+// ====== LIST VENDORS ======
 router.get('/vendors', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -72,7 +67,7 @@ router.get('/vendors', async (req, res) => {
   }
 });
 
-// Get all orders
+// ====== LIST ORDERS ======
 router.get('/orders', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -87,8 +82,7 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// Get analytics
-// Get analytics
+// ====== ANALYTICS ======
 router.get('/analytics', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -96,8 +90,6 @@ router.get('/analytics', async (req, res) => {
     }
 
     const orders = await Order.find({});
-
-    // Ensure numeric total
     const revenue = orders.reduce((sum, order) => {
       const amount = Number(order.total) || 0;
       return sum + amount;
@@ -105,13 +97,13 @@ router.get('/analytics', async (req, res) => {
 
     const totalOrders = orders.length;
 
-    res.json({ 
-      ok: true, 
-      data: { 
-        revenue,        // <-- MATCHES frontend
+    res.json({
+      ok: true,
+      data: {
+        revenue,
         totalOrders,
-        averageOrderValue: totalOrders > 0 ? revenue / totalOrders : 0
-      } 
+        averageOrderValue: totalOrders > 0 ? revenue / totalOrders : 0,
+      },
     });
   } catch (error) {
     console.error('Analytics error:', error);
@@ -119,5 +111,113 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+// ======================================================
+//              VENDOR STATUS MANAGEMENT
+// ======================================================
+async function requireAdmin(req, res) {
+  if (!req.user || req.user.role !== 'admin') {
+    res.status(403).json({ ok: false, message: 'Admin access required' });
+    return false;
+  }
+  return true;
+}
+
+async function updateVendorStatus(username, status) {
+  return Vendor.findOneAndUpdate(
+    { username },
+    { status },
+    { new: true }
+  ).select('-password');
+}
+
+// ✅ Approve vendor
+router.patch('/vendors/:username/approve', async (req, res) => {
+  try {
+    if (!(await requireAdmin(req, res))) return;
+
+    const vendor = await updateVendorStatus(req.params.username, 'approved');
+
+    if (!vendor) {
+      return res.status(404).json({ ok: false, message: 'Vendor not found' });
+    }
+
+    res.json({ ok: true, data: vendor });
+  } catch (error) {
+    console.error('Approve vendor error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to approve vendor' });
+  }
+});
+
+// ❌ Decline vendor
+router.patch('/vendors/:username/decline', async (req, res) => {
+  try {
+    if (!(await requireAdmin(req, res))) return;
+
+    const vendor = await updateVendorStatus(req.params.username, 'declined');
+
+    if (!vendor) {
+      return res.status(404).json({ ok: false, message: 'Vendor not found' });
+    }
+
+    res.json({ ok: true, data: vendor });
+  } catch (error) {
+    console.error('Decline vendor error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to decline vendor' });
+  }
+});
+
+// ⏸ Hold vendor
+router.patch('/vendors/:username/hold', async (req, res) => {
+  try {
+    if (!(await requireAdmin(req, res))) return;
+
+    const vendor = await updateVendorStatus(req.params.username, 'held');
+
+    if (!vendor) {
+      return res.status(404).json({ ok: false, message: 'Vendor not found' });
+    }
+
+    res.json({ ok: true, data: vendor });
+  } catch (error) {
+    console.error('Hold vendor error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to put vendor on hold' });
+  }
+});
+
+// 🔄 Reactivate vendor (from held / declined / removed)
+router.patch('/vendors/:username/reactivate', async (req, res) => {
+  try {
+    if (!(await requireAdmin(req, res))) return;
+
+    const vendor = await updateVendorStatus(req.params.username, 'approved');
+
+    if (!vendor) {
+      return res.status(404).json({ ok: false, message: 'Vendor not found' });
+    }
+
+    res.json({ ok: true, data: vendor });
+  } catch (error) {
+    console.error('Reactivate vendor error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to reactivate vendor' });
+  }
+});
+
+// 🗑 Remove vendor (soft delete)
+router.patch('/vendors/:username/remove', async (req, res) => {
+  try {
+    if (!(await requireAdmin(req, res))) return;
+
+    const vendor = await updateVendorStatus(req.params.username, 'removed');
+
+    if (!vendor) {
+      return res.status(404).json({ ok: false, message: 'Vendor not found' });
+    }
+
+    res.json({ ok: true, data: vendor });
+  } catch (error) {
+    console.error('Remove vendor error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to remove vendor' });
+  }
+});
 
 export default router;
