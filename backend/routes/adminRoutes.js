@@ -4,6 +4,8 @@ import Admin from '../models/admin.js';
 import Customer from '../models/customer.js';
 import Vendor from '../models/vendor.js';
 import Order from '../models/Order.js';
+import { logToLogstash } from '../utils/logstash.js';
+
 
 const router = express.Router();
 
@@ -118,6 +120,88 @@ router.get('/analytics', async (req, res) => {
     res.status(500).json({ ok: false, message: 'Failed to fetch analytics' });
   }
 });
+
+
+// APPROVE
+router.patch('/vendors/:username/approve', async (req, res) => {
+  const vendor = await Vendor.findOneAndUpdate(
+    { username: req.params.username },
+    { status: 'approved' },
+    { new: true }
+  );
+
+  if (!vendor) return res.status(404).json({ ok: false, message: 'Vendor not found' });
+
+  console.log(`✅ Vendor approved: ${vendor.username}`);
+  logToLogstash("info", "vendor_status_change", {
+    action: "approved",
+    vendor: vendor.username,
+    admin: req.user.username
+  });
+
+  res.json({ ok: true, data: vendor });
+});
+
+// HOLD
+router.patch('/vendors/:username/hold', async (req, res) => {
+  const vendor = await Vendor.findOneAndUpdate(
+    { username: req.params.username },
+    { status: 'held' },
+    { new: true }
+  );
+
+  if (!vendor) return res.status(404).json({ ok: false, message: 'Vendor not found' });
+
+  console.log(`🟠 Vendor put on HOLD: ${vendor.username}`);
+  logToLogstash("warn", "vendor_status_change", {
+    action: "hold",
+    vendor: vendor.username,
+    admin: req.user.username
+  });
+
+  res.json({ ok: true, data: vendor });
+});
+
+// DECLINE
+router.patch('/vendors/:username/decline', async (req, res) => {
+  const vendor = await Vendor.findOneAndUpdate(
+    { username: req.params.username },
+    { status: 'declined' },
+    { new: true }
+  );
+
+  if (!vendor) return res.status(404).json({ ok: false, message: 'Vendor not found' });
+
+  console.log(`❌ Vendor DECLINED: ${vendor.username}`);
+  logToLogstash("error", "vendor_status_change", {
+    action: "declined",
+    vendor: vendor.username,
+    admin: req.user.username
+  });
+
+  res.json({ ok: true, data: vendor });
+});
+
+// REACTIVATE
+router.patch('/vendors/:username/reactivate', async (req, res) => {
+  const vendor = await Vendor.findOneAndUpdate(
+    { username: req.params.username },
+    { status: 'approved' },
+    { new: true }
+  );
+
+  if (!vendor) return res.status(404).json({ ok: false, message: 'Vendor not found' });
+
+  console.log(`🔵 Vendor REACTIVATED: ${vendor.username}`);
+  logToLogstash("info", "vendor_status_change", {
+    action: "reactivated",
+    vendor: vendor.username,
+    admin: req.user.username
+  });
+
+  res.json({ ok: true, data: vendor });
+});
+
 
 
 export default router;

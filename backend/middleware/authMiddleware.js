@@ -1,26 +1,44 @@
 import jwt from 'jsonwebtoken';
+import Vendor from '../models/vendor.js';
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    console.log('📨 Auth header received:', authHeader ? authHeader.slice(0, 30) + '...' : 'MISSING');
-    
-    const token = authHeader?.split(' ')[1]; // Extract "Bearer TOKEN"
-    
-    if (!token) {
-      console.log('❌ No token in authorization header');
-      return res.status(401).json({ ok: false, message: 'No token provided' });
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ ok: false, message: 'No token provided' });
+
+    const token = header.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+
+    req.user = decoded;
+
+    // AUTO-LOGOUT VENDORS IF STATUS CHANGED
+    if (decoded.role === 'vendor') {
+      const vendor = await Vendor.findOne({ username: decoded.username }).lean();
+
+      if (!vendor) {
+        return res.status(403).json({ ok: false, message: 'Vendor not found' });
+      }
+
+      if (vendor.status === 'held') {
+        console.log(`🚫 AUTO-LOGOUT: Vendor "${vendor.username}" is on hold.`);
+        return res.status(403).json({ ok: false, message: 'Account on hold' });
+      }
+
+      if (vendor.status === 'declined') {
+        console.log(`🚫 AUTO-LOGOUT: Vendor "${vendor.username}" has been declined.`);
+        return res.status(403).json({ ok: false, message: 'Account declined' });
+      }
+
+      if (vendor.status === 'pending') {
+        console.log(`🚫 AUTO-LOGOUT: Vendor "${vendor.username}" is pending approval.`);
+        return res.status(403).json({ ok: false, message: 'Account pending approval' });
+      }
     }
 
-    console.log('🔐 Token received:', token.slice(0, 30) + '...');
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    console.log('✅ Token verified - User:', decoded.username, 'Role:', decoded.role, 'ID:', decoded.id);
-    
-    req.user = decoded; // Attach user info to request
     next();
-  } catch (error) {
-    console.error('❌ Token verification failed:', error.message);
+
+  } catch (err) {
+    console.error("Auth error:", err.message);
     return res.status(401).json({ ok: false, message: 'Invalid or expired token' });
   }
 };
