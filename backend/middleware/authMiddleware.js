@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
+import { getValue } from '../utils/redisHelper.js';
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     console.log('📨 Auth header received:', authHeader ? authHeader.slice(0, 30) + '...' : 'MISSING');
@@ -17,6 +18,12 @@ export const authMiddleware = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     console.log('✅ Token verified - User:', decoded.username, 'Role:', decoded.role, 'ID:', decoded.id);
     
+    const storedToken = await getValue(`user:${decoded.id}:token`);
+    if (storedToken !== token) {
+      console.log('❌ Token mismatch - possible logout or token invalidation');
+      return res.status(401).json({ ok: false, message: 'Token has been revoked' });
+    }
+
     req.user = decoded; // Attach user info to request
     next();
   } catch (error) {

@@ -10,6 +10,9 @@ import Admin from './models/admin.js';
 import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
 import './config/redis.js';
+import rateLimit from './middleware/rateLimit.js';
+import { setValue, getValue } from './utils/redisHelper.js';
+import { sendOTP , verifyOTP } from './controllers/authController.js';
 // import stuff guys(redis.js) from config
 
 
@@ -30,7 +33,7 @@ app.use(
 
 
 app.use(express.json());
-
+app.use('/login', rateLimit(5,60));
 // Connect to MongoDB FIRST
 connectDB();
 
@@ -91,7 +94,8 @@ app.post('/login', async (req, res) => {
 
     const secret = process.env.JWT_SECRET || 'your-secret-key';
     const token = jwt.sign(payload, secret, { expiresIn: '24h' });
-    
+    await setValue(`user:${userId}:token`, token, 24 * 60 *60);
+
     console.log('🔐 Generated JWT token for user:', user.username, 'Role:', role, 'User ID:', userId);
     console.log('🔐 Token payload:', JSON.stringify(payload));
     console.log('🔐 Token (first 50 chars):', token.slice(0, 50) + '...');
@@ -115,12 +119,45 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.post('/send-otp', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ ok: false, message: 'Phone number required' });
+    }
+
+    await sendOTP(phone);
+    res.json({ ok: true, message: 'OTP sent' });
+  } catch (error) {
+    console.error('Send OTP error:', error.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+  }
+});
+
+app.post('/verify-otp', async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ ok: false, message: 'Phone number and OTP required' });
+    }
+    const result = await verifyOTP(phone, otp);
+    if (result.success) {
+      res.json({ ok: true, message: 'OTP verified' });
+    } else {
+      res.status(400).json({ ok: false, message: 'Invalid OTP' });
+    }
+  } catch (error) {
+    console.error('❌ Verify OTP error:', error.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+  }
+});
+
 // Register endpoint
 app.post('/register', async (req, res) => {
   try {
-    const { username, password, email, role } = req.body;
+    const { username, password, email, role, phone, fullName, address, companyName, otp } = req.body;
 
-    if (!username || !password || !email || !role) {
+    if (!username || !password || !email || !role || !otp || !phone) {
       return res.status(400).json({ ok: false, message: 'All fields required' });
     }
 
@@ -136,12 +173,42 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'Invalid role' });
     }
 
+if (role === 'customer' || role === 'vendor') {
+      if (!phone) {
+        return res.status(400).json({ ok: false, message: 'Phone is required for OTP verification' });
+      }
+      if (!otp) {
+        return res.status(400).json({ ok: false, message: 'OTP is required' });
+      }
+
+      const otpResult = await verifyOTP(phone, otp);
+      if (!otpResult.success) {
+        return res.status(400).json({
+          ok: false,
+          message: otpResult.message || 'OTP verification failed',
+        });
+      }
+    }
+
     const existingUser = await Model.findOne({ username });
     if (existingUser) {
       return res.status(409).json({ ok: false, message: 'Username already exists' });
     }
 
-    const user = new Model({ username, password, email, role });
+    const userData = { username, password, email, role };
+
+    if (role === 'vendor') {
+      if (companyName) userData.companyName = companyName;
+      if (phone) userData.phone = phone;
+    }
+
+    if (role === 'customer') {
+      if (fullName) userData.fullName = fullName;
+      if (address) userData.address = address;
+      if (phone) userData.phone = phone;
+    }
+
+    const user = new Model(userData);
     await user.save();
 
     res.json({

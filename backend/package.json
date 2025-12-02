@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "react-router-dom": "^7.9.6",
-    "redis": "^5.10.0"
+    "redis": "^5.10.0",
+    "twilio": "^5.10.6"
   }
 }
