@@ -1,24 +1,15 @@
 export function setAuth({ role, user, token }, remember = false) {
-  // store token in chosen storage and remove from the other to avoid stale tokens
   const storage = remember ? localStorage : sessionStorage;
-  const other = remember ? sessionStorage : localStorage;
-
-  try {
-    other.removeItem('authToken');
-    other.removeItem('userRole');
-    other.removeItem('user');
-  } catch (e) { /* ignore */ }
-
-  console.log('🔐 Saving auth - Role:', role);
-  console.log('🔐 Token (preview):', token ? token.slice(0, 30) + '...' : 'none');
-
-  if (role) storage.setItem('userRole', role);
+  
+  console.log('🔐 Saving auth - Role:', role, 'Token:', token ? token.slice(0, 30) + '...' : 'none');
+  
+  storage.setItem('userRole', role);
   if (user) storage.setItem('user', JSON.stringify(user));
   if (token) storage.setItem('authToken', token);
-
-  // verify
-  const saved = storage.getItem('authToken');
-  console.log('✅ Auth saved to', remember ? 'localStorage' : 'sessionStorage', '-', saved ? 'YES' : 'NO');
+  
+  // Verify it was saved
+  const savedToken = storage.getItem('authToken');
+  console.log('✅ Auth saved. Token in storage:', savedToken ? savedToken.slice(0, 30) + '...' : 'NOT SAVED');
 }
 
 export function clearAuth() {
@@ -29,16 +20,14 @@ export function clearAuth() {
     sessionStorage.removeItem('userRole');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('authToken');
-    console.log('🔓 Auth cleared from all storages');
-  } catch (e) { console.error('Error clearing auth:', e); }
+    console.log('🔓 Auth cleared');
+  } catch (e) { /* ignore */ }
 }
 
 export function getAuthToken() {
-  const localToken = localStorage.getItem('authToken');
-  const sessionToken = sessionStorage.getItem('authToken');
-  const token = localToken || sessionToken || null;
-  console.log('🔍 token - local:', !!localToken, 'session:', !!sessionToken);
-  return token;
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  console.log('🔍 Getting auth token from storage:', token ? token.slice(0, 30) + '...' : 'NOT FOUND');
+  return token || null;
 }
 
 export function getUserRole() {

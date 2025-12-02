@@ -13,13 +13,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "amqplib": "^0.10.9",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
-    "node-fetch": "^3.3.2",
-    "react-router-dom": "^7.9.6"
+    "prom-client": "^15.1.3",
+    "react-router-dom": "^7.9.6",
+    "redis": "^5.10.0"
   }
 }

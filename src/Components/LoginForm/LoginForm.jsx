@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './LoginForm.css';
-import { setAuth, clearAuth } from '../../utils/auth';
+import { setAuth } from '../../utils/auth';
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -29,26 +29,29 @@ const LoginForm = () => {
 
       console.log('📡 Response status:', res.status);
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       console.log('📦 Response data:', data);
 
-      if (res.ok && data.ok && data.token) {
-        // clear old tokens first
-        clearAuth();
-        // save new auth (token stored into selected storage by setAuth)
+      if (res.ok && data.ok) {
+        console.log('✅ Login successful for', username);
         setAuth({ role: data.role, user: data.user, token: data.token }, remember);
-        // navigate to role dashboard path
-        const target = data.role === 'admin' ? '/admin' : data.role === 'vendor' ? '/vendor' : '/customer';
-        navigate(target, { replace: true });
+        navigate(`/${data.role}`, { replace: true });
         return;
       }
 
-      if (res.status === 404) setError('User not found');
-      else if (res.status === 401) setError('Invalid credentials');
-      else setError(data.message || 'Login failed');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Server error');
+      if (res.status === 404) {
+        setError('User not found. Please register first.');
+        return;
+      }
+      if (res.status === 401) {
+        setError('Invalid credentials. Please check your username and password.');
+        return;
+      }
+
+      setError(data.message || 'Login failed. Please try again.');
+    } catch (error) {
+      console.error('❌ Error during login:', error);
+      setError('Server error. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -59,15 +62,34 @@ const LoginForm = () => {
       <form onSubmit={handleSubmit}>
         <h2>Login</h2>
         <div className='input-field'>
-          <input value={username} onChange={e => setUsername(e.target.value)} type="text" placeholder="Username" required disabled={loading}/>
+          <input 
+            value={username} 
+            onChange={e => setUsername(e.target.value)} 
+            type="text" 
+            placeholder="Username" 
+            required 
+            disabled={loading}
+          />
         </div>
         <div className='input-field'>
-          <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" required disabled={loading}/>
+          <input 
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+            type="password" 
+            placeholder="Password" 
+            required 
+            disabled={loading}
+          />
         </div>
 
         <div className='remember-forgot'>
           <label>
-            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} disabled={loading}/> Remember me
+            <input 
+              type="checkbox" 
+              checked={remember} 
+              onChange={e => setRemember(e.target.checked)}
+              disabled={loading}
+            /> Remember me
           </label>
           <a href="#">Forgot Password?</a>
         </div>
