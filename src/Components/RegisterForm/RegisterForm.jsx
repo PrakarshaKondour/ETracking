@@ -20,48 +20,6 @@ const RegisterForm = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🔐 Send OTP handler
-  const handleSendOtp = async () => {
-    setError('');
-
-    if (role !== 'vendor' && role !== 'customer') {
-      setError('OTP is only required for customer and vendor.');
-      return;
-    }
-
-    if (!phone) {
-      setError('Phone is required to send OTP.');
-      return;
-    }
-
-    try {
-      setOtpSending(true);
-      const res = await fetch(`${API}/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && data.ok) {
-        setOtpSent(true);
-        // For dev: you can log the OTP if backend returns it
-        if (data.otp) {
-          console.log('Dev OTP:', data.otp);
-        }
-        window.alert('OTP sent to your phone.');
-      } else {
-        setError(data.message || 'Failed to send OTP');
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Failed to send OTP. Try again.');
-    } finally {
-      setOtpSending(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -181,18 +139,67 @@ const RegisterForm = () => {
             </div>
 
             {/* 🔐 OTP input + send button */}
-            <div className="input-field otp-group">
+            <div className="input-field">
               <input
                 value={otp}
                 onChange={e => setOtp(e.target.value)}
                 type="text"
                 placeholder="OTP"
-                className="otp-input"
+                // className="otp-input"
               />
               <button
                 type="button"
                 className="btn secondary otp-btn"
-                onClick={handleSendOtp}
+                onClick={
+                  async () => {
+                    setError('');
+
+                    //send OTP
+                    if(!otpSent){
+                      if(role !== 'vendor' && role !== 'customer'){
+                        setError('OTP is only required for customer and vendor.');
+                        return;
+                      }
+                      if(!phone){
+                        setError('Phone is required to send OTP.');
+                        return;
+                      }
+
+                      try{
+                        setOtpSending(true);
+                        const res = await fetch(`${API}/send-otp`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ phone }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+
+                        if(res.ok && data.ok){
+                          setOtpSent(true);
+                          if(data.otp) {
+                            console.log('Dev OTP:', data.otp);
+                            window.alert(`Your OTP: ${data.otp}`);
+                          } else {
+                            window.alert('OTP sent to your phone.');
+                          }
+                        } else {
+                          setError(data.message || 'Failed to send OTP');
+                        }
+                      } catch(err) {
+                        console.error(err);
+                        setError('Failed to send OTP. Try again.');
+                      } finally {
+                        setOtpSending(false);
+                      }
+                    } else {
+                      if(!otp){
+                        setError('Please enter the OTP sent to your phone.');
+                        return;
+                      }
+                      window.alert('OTP entered. Now click register to complete sign up.');
+                    }
+                  }
+                }
                 disabled={otpSending || !phone}
               >
                 {otpSending ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}

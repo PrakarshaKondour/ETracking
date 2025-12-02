@@ -126,8 +126,13 @@ app.post('/send-otp', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'Phone number required' });
     }
 
-    await sendOTP(phone);
-    res.json({ ok: true, message: 'OTP sent' });
+    const otp = await sendOTP(phone);
+    const response = { ok: true, message: 'OTP sent' };
+
+    if(process.env.NODE_ENV !== 'production') {
+      response.otp = otp;
+    }
+    res.json(response);
   } catch (error) {
     console.error('Send OTP error:', error.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + error.message });

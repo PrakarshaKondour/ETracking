@@ -250,3 +250,7 @@ body {
     text-align: center;
   }
 }
+
+.otp-btn {
+  margin-top: -4px;
+}
