@@ -6,10 +6,13 @@ import connectDB from './db.js';
 import adminRoutes from './routes/adminRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import Admin from './models/admin.js';
 import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
 import './config/redis.js';
+import { connectRabbitMQ } from './config/rabbitmq.js';
+import { startVendorNotificationConsumer, publishVendorRegistered } from './services/notificationService.js';
 import rateLimit from './middleware/rateLimit.js';
 import { setValue, getValue } from './utils/redisHelper.js';
 import { sendOTP , verifyOTP } from './controllers/authController.js';
@@ -36,6 +39,17 @@ app.use(express.json());
 app.use('/login', rateLimit(5,60));
 // Connect to MongoDB FIRST
 connectDB();
+
+// Connect to RabbitMQ and start consumers
+(async () => {
+  try {
+    await connectRabbitMQ();
+    await startVendorNotificationConsumer();
+    console.log('🚀 RabbitMQ notification system ready');
+  } catch (err) {
+    console.error('⚠️ RabbitMQ setup failed (notifications will not work):', err.message);
+  }
+})();
 
 async function findUserByUsername(username) {
   let user = await Admin.findOne({ username });
@@ -67,6 +81,15 @@ app.post('/login', async (req, res) => {
 
     if (user.password !== password) {
       return res.status(401).json({ ok: false, message: 'Invalid password' });
+    }
+
+    // 🚫 Check vendor status - only approved vendors can log in
+    if (role === 'vendor' && user.status !== 'approved') {
+      console.log(`⏳ Vendor login attempt while status is: ${user.status}`);
+      return res.status(403).json({ 
+        ok: false, 
+        message: `Your vendor account is currently ${user.status}. Please wait for admin approval.` 
+      });
     }
 
     // Convert MongoDB ObjectId to string for JWT payload - ensure it's unique
@@ -205,6 +228,8 @@ if (role === 'customer' || role === 'vendor') {
     if (role === 'vendor') {
       if (companyName) userData.companyName = companyName;
       if (phone) userData.phone = phone;
+      // Vendors start in pending status, need admin approval to be approved
+      userData.status = 'pending';
     }
 
     if (role === 'customer') {
@@ -216,14 +241,30 @@ if (role === 'customer' || role === 'vendor') {
     const user = new Model(userData);
     await user.save();
 
+    // If vendor, publish registration event to RabbitMQ
+    if (role === 'vendor') {
+      try {
+        await publishVendorRegistered(user);
+      } catch (err) {
+        console.error('⚠️ Failed to publish vendor registration event:', err.message);
+        // Don't fail registration if event publishing fails
+      }
+    }
+
+    // Different response based on role
+    const responseMsg = role === 'vendor' 
+      ? 'Registration successful! Your account is pending admin approval. You will be notified once approved.'
+      : 'Registration successful';
+
     res.json({
       ok: true,
-      message: 'Registration successful',
+      message: responseMsg,
       role: role,
       user: {
         id: user._id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        status: user.status || undefined
       }
     });
   } catch (error) {
@@ -236,6 +277,7 @@ if (role === 'customer' || role === 'vendor') {
 app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/vendor', vendorRoutes);
+app.use('/api', notificationRoutes);
 
 // Start server
 app.listen(PORT, () => {
