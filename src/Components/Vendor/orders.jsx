@@ -125,23 +125,23 @@ const VendorOrders = () => {
                   </div>
 
                   <div className="status-buttons">
-                    {canGoBack && (
+                    {canGoBack && prevStatus &&(
                       <button
                         className="status-btn"
                         onClick={() => handleStatusChange(o._id, prevStatus)}
                         title={`Move to ${PRETTY_STATUS(prevStatus)}`}
                       >
                         <span className="status-btn-icon">←</span>
-                        Back
+                        {PRETTY_STATUS(prevStatus)}
                       </button>
                     )}
-                    {canGoForward && (
+                    {canGoForward && nextStatus &&(
                       <button
                         className="status-btn"
                         onClick={() => handleStatusChange(o._id, nextStatus)}
                         title={`Move to ${PRETTY_STATUS(nextStatus)}`}
                       >
-                        Next
+                        {PRETTY_STATUS(nextStatus)}
                         <span className="status-btn-icon">→</span>
                       </button>
                     )}

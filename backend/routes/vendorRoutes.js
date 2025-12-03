@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Vendor from '../models/vendor.js';
 import Order from '../models/Order.js';
 import { ORDER_STATUS_FLOW } from "../constants/orderStatus.js";
@@ -9,7 +9,8 @@ import { ORDER_STATUS_FLOW } from "../constants/orderStatus.js";
 const router = express.Router();
 
 // Apply auth middleware to ALL vendor routes
-router.use(authMiddleware);
+router.use(verifyToken);
+router.use(requireRole('vendor'));
 
 // Allowed status values for vendor updates
 const ALLOWED_STATUSES = ORDER_STATUS_FLOW;
