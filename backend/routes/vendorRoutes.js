@@ -109,11 +109,12 @@ router.get('/dashboard', async (req, res) => {
     const recentOrders = orders.slice(0, 5);
     const totalOrders = orders.length;
     const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const pendingOrders = orders.filter(order => order.status !== 'delivered').length;
 
     console.log('✅ Dashboard data for vendor username:', req.user.username, '- Total orders:', totalOrders);
     res.json({
       ok: true,
-      data: { recentOrders, totalOrders, totalRevenue },
+      data: { recentOrders, totalOrders, totalRevenue, pendingOrders },
     });
   } catch (error) {
     console.error('Dashboard error:', error);

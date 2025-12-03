@@ -74,8 +74,38 @@ router.get('/orders', async (req, res) => {
       return res.status(403).json({ ok: false, message: 'Admin access required' });
     }
 
-    const orders = await Order.find({});
-    res.json({ ok: true, data: orders });
+    // Expected time in each status (in hours)
+    const expectedTimeByStatus = {
+      ordered: 24,
+      processing: 48,
+      packing: 24,
+      shipped: 12,
+      in_transit: 72,
+      out_for_delivery: 24,
+      delivered: 0
+    };
+
+    const orders = await Order.find({}).sort({ vendorUsername: 1, createdAt: -1 });
+
+    // Calculate escalation delays for each order
+    const ordersWithEscalation = orders.map(order => {
+      const orderAge = (Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60); // in hours
+      const expectedTime = expectedTimeByStatus[order.status] || 24;
+      const escalationDelay = Math.max(0, orderAge - expectedTime);
+      const isEscalated = escalationDelay > 0;
+
+      return {
+        ...order.toObject(),
+        escalation: {
+          isEscalated,
+          delayHours: Math.round(escalationDelay),
+          orderAgeHours: Math.round(orderAge),
+          expectedHours: expectedTime
+        }
+      };
+    });
+
+    res.json({ ok: true, data: ordersWithEscalation });
   } catch (error) {
     console.error('Orders error:', error);
     res.status(500).json({ ok: false, message: 'Failed to fetch orders' });
