@@ -110,11 +110,12 @@ router.get('/dashboard', async (req, res) => {
     const recentOrders = orders.slice(0, 5);
     const totalOrders = orders.length;
     const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const pendingOrders = orders.filter(order => order.status !== 'delivered').length;
 
     console.log('✅ Dashboard data for vendor username:', req.user.username, '- Total orders:', totalOrders);
     res.json({
       ok: true,
-      data: { recentOrders, totalOrders, totalRevenue },
+      data: { recentOrders, totalOrders, totalRevenue, pendingOrders },
     });
   } catch (error) {
     console.error('Dashboard error:', error);
@@ -133,12 +134,81 @@ router.get('/analytics', async (req, res) => {
     const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = orders.length;
 
+    // Time-series data: Orders over last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentOrders = orders.filter(order => new Date(order.createdAt) >= thirtyDaysAgo);
+
+    // Group by date
+    const ordersByDate = {};
+    const revenueByDate = {};
+
+    recentOrders.forEach(order => {
+      const date = new Date(order.createdAt).toISOString().split('T')[0];
+      ordersByDate[date] = (ordersByDate[date] || 0) + 1;
+      revenueByDate[date] = (revenueByDate[date] || 0) + (Number(order.total) || 0);
+    });
+
+    // Convert to array format for charts
+    const timeSeries = Object.keys(ordersByDate).sort().map(date => ({
+      date,
+      orders: ordersByDate[date],
+      revenue: revenueByDate[date]
+    }));
+
+    // Order status breakdown
+    const statusBreakdown = {};
+    orders.forEach(order => {
+      const status = order.status || 'unknown';
+      statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+    });
+
+    // Performance trends (compare last 7 days vs previous 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const lastWeekOrders = orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      return orderDate >= sevenDaysAgo;
+    });
+
+    const previousWeekOrders = orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      return orderDate >= fourteenDaysAgo && orderDate < sevenDaysAgo;
+    });
+
+    const lastWeekRevenue = lastWeekOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const previousWeekRevenue = previousWeekOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+    const performanceTrends = {
+      lastWeek: {
+        orders: lastWeekOrders.length,
+        revenue: lastWeekRevenue,
+      },
+      previousWeek: {
+        orders: previousWeekOrders.length,
+        revenue: previousWeekRevenue,
+      },
+      orderGrowth: previousWeekOrders.length > 0
+        ? ((lastWeekOrders.length - previousWeekOrders.length) / previousWeekOrders.length * 100).toFixed(2)
+        : 0,
+      revenueGrowth: previousWeekRevenue > 0
+        ? ((lastWeekRevenue - previousWeekRevenue) / previousWeekRevenue * 100).toFixed(2)
+        : 0,
+    };
+
     res.json({
       ok: true,
       data: {
         totalRevenue,
         totalOrders,
         averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        timeSeries,
+        statusBreakdown,
+        performanceTrends,
       },
     });
   } catch (error) {
