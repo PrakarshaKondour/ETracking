@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './LoginForm.css';
 import { setAuth } from '../../utils/auth';
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = require('../../utils/auth');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
@@ -56,6 +57,19 @@ const LoginForm = () => {
       setLoading(false);
     }
   };
+
+  // redirect away from login if already authenticated
+  useEffect(() => {
+    try {
+      const auth = require('../../utils/auth');
+      if (auth.isAuthenticated()) {
+        const role = auth.getUserRole();
+        navigate(`/${role}`, { replace: true });
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [navigate]);
 
   return (
     <div className='wrapper'>

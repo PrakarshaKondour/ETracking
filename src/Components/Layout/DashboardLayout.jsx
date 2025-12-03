@@ -12,6 +12,19 @@ const DashboardLayout = () => {
     if (!role) navigate('/login', { replace: true });
   }, [navigate, role]);
 
+  useEffect(() => {
+    // update document title based on role so browser tab is meaningful
+    try {
+      if (role) {
+        document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} - ETracking`;
+      } else {
+        document.title = 'ETracking';
+      }
+    } catch (e) {
+      // ignore if server-side rendering or document not available
+    }
+  }, [role]);
+
   const handleLogout = () => {
     clearAuth();
     navigate('/login', { replace: true });
