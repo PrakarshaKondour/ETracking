@@ -77,8 +77,38 @@ router.get('/orders', async (req, res) => {
       return res.status(403).json({ ok: false, message: 'Admin access required' });
     }
 
-    const orders = await Order.find({});
-    res.json({ ok: true, data: orders });
+    // Expected time in each status (in hours)
+    const expectedTimeByStatus = {
+      ordered: 24,
+      processing: 48,
+      packing: 24,
+      shipped: 12,
+      in_transit: 72,
+      out_for_delivery: 24,
+      delivered: 0
+    };
+
+    const orders = await Order.find({}).sort({ vendorUsername: 1, createdAt: -1 });
+
+    // Calculate escalation delays for each order
+    const ordersWithEscalation = orders.map(order => {
+      const orderAge = (Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60); // in hours
+      const expectedTime = expectedTimeByStatus[order.status] || 24;
+      const escalationDelay = Math.max(0, orderAge - expectedTime);
+      const isEscalated = escalationDelay > 0;
+
+      return {
+        ...order.toObject(),
+        escalation: {
+          isEscalated,
+          delayHours: Math.round(escalationDelay),
+          orderAgeHours: Math.round(orderAge),
+          expectedHours: expectedTime
+        }
+      };
+    });
+
+    res.json({ ok: true, data: ordersWithEscalation });
   } catch (error) {
     console.error('Orders error:', error);
     res.status(500).json({ ok: false, message: 'Failed to fetch orders' });
@@ -100,12 +130,61 @@ router.get('/analytics', async (req, res) => {
 
     const totalOrders = orders.length;
 
+    // Time-series data: Orders over last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentOrders = orders.filter(order => new Date(order.createdAt) >= thirtyDaysAgo);
+
+    // Group by date
+    const ordersByDate = {};
+    const revenueByDate = {};
+
+    recentOrders.forEach(order => {
+      const date = new Date(order.createdAt).toISOString().split('T')[0];
+      ordersByDate[date] = (ordersByDate[date] || 0) + 1;
+      revenueByDate[date] = (revenueByDate[date] || 0) + (Number(order.total) || 0);
+    });
+
+    // Convert to array format for charts
+    const timeSeries = Object.keys(ordersByDate).sort().map(date => ({
+      date,
+      orders: ordersByDate[date],
+      revenue: revenueByDate[date]
+    }));
+
+    // Order status breakdown
+    const statusBreakdown = {};
+    orders.forEach(order => {
+      const status = order.status || 'unknown';
+      statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+    });
+
+    // Top vendors by order count and revenue
+    const vendorStats = {};
+    orders.forEach(order => {
+      const vendor = order.vendorUsername || 'unknown';
+      if (!vendorStats[vendor]) {
+        vendorStats[vendor] = { orderCount: 0, revenue: 0 };
+      }
+      vendorStats[vendor].orderCount += 1;
+      vendorStats[vendor].revenue += Number(order.total) || 0;
+    });
+
+    const topVendors = Object.entries(vendorStats)
+      .map(([vendor, stats]) => ({ vendor, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
     res.json({
       ok: true,
       data: {
         revenue,
         totalOrders,
         averageOrderValue: totalOrders > 0 ? revenue / totalOrders : 0,
+        timeSeries,
+        statusBreakdown,
+        topVendors,
       },
     });
   } catch (error) {

@@ -81,7 +81,7 @@ const VendorDashboard = () => {
                   <span className="order-card-amount">${(o.total || 0).toFixed(2)}</span>
                 </div>
                 <div className="order-card-meta">
-                  <span>Status: Pending</span>
+                  <span>Status: {o.status ? o.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Pending'}</span>
                   {o.createdAt && <span>{new Date(o.createdAt).toLocaleDateString()}</span>}
                 </div>
               </div>

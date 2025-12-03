@@ -10,6 +10,10 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import Admin from './models/admin.js';
 import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
+import Order from './models/Order.js';
+import './config/redis.js';
+import { register, updateOrderMetrics } from './config/prometheus.js';
+import { metricsMiddleware } from './middleware/metricsMiddleware.js';
 import './config/redis.js';
 import { connectRabbitMQ } from './config/rabbitmq.js';
 import { startVendorNotificationConsumer, publishVendorRegistered } from './services/notificationService.js';
@@ -34,6 +38,8 @@ app.use(
   })
 );
 
+// Metrics middleware (before routes)
+app.use(metricsMiddleware);
 
 app.use(express.json());
 app.use('/login', rateLimit(5,60));
@@ -105,7 +111,7 @@ app.post('/login', async (req, res) => {
       userId = `${user.username}_${Date.now()}`;
       console.warn('⚠️ User _id not found, using fallback ID for:', user.username);
     }
-    
+
     // Ensure userId is unique - add timestamp if needed (but it should already be unique from _id)
     const payload = {
       id: userId,
@@ -270,6 +276,20 @@ if (role === 'customer' || role === 'vendor') {
   } catch (error) {
     console.error('❌ Register error:', error.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+  }
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    // Update order metrics before serving
+    await updateOrderMetrics(Order);
+
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (error) {
+    console.error('❌ Metrics endpoint error:', error);
+    res.status(500).end('Error generating metrics');
   }
 });
 
