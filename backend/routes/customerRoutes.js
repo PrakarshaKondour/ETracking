@@ -1,13 +1,14 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Customer from '../models/customer.js';
 import Order from '../models/Order.js';
 
 const router = express.Router();
 
 // Apply auth middleware to ALL customer routes
-router.use(authMiddleware);
+router.use(verifyToken);
+router.use(requireRole('customer'));
 
 // Get customer profile
 router.get('/profile', async (req, res) => {

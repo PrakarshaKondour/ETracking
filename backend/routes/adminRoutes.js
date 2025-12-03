@@ -1,6 +1,8 @@
 // adminRoutes.js
 import express from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
+import { deleteValue } from '../utils/redisHelper.js';
+import client from '../config/redis.js';
 import Admin from '../models/admin.js';
 import Customer from '../models/customer.js';
 import Vendor from '../models/vendor.js';
@@ -9,7 +11,8 @@ import Order from '../models/Order.js';
 const router = express.Router();
 
 // ✅ Apply auth middleware to ALL admin routes
-router.use(authMiddleware);
+router.use(verifyToken);
+router.use(requireRole('admin'));
 
 // ====== DASHBOARD ======
 router.get('/dashboard', async (req, res) => {
@@ -141,7 +144,28 @@ router.patch('/vendors/:username/approve', async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Vendor not found' });
     }
 
-    res.json({ ok: true, data: vendor });
+    // Clear the notification from Redis (individual key)
+    const notificationKey = `notification:${vendor._id.toString()}`;
+    await deleteValue(notificationKey);
+
+    // Also remove from the notifications list so admin UI updates immediately
+    try {
+      const listKey = 'notifications:admin:vendor_registrations';
+      const all = await client.lRange(listKey, 0, -1);
+      const filtered = all.filter((str) => {
+        try { const n = JSON.parse(str); return n.data?.vendorId !== vendor._id.toString(); } catch (e) { return true; }
+      });
+      await client.del(listKey);
+      if (filtered.length > 0) {
+        await client.rPush(listKey, ...filtered);
+        await client.expire(listKey, 86400);
+      }
+      console.log('🗑️ Cleared notification for vendor:', vendor.username);
+    } catch (err) {
+      console.error('⚠️ Failed to remove vendor notification from list:', err.message);
+    }
+
+    res.json({ ok: true, data: vendor, message: 'Vendor approved successfully' });
   } catch (error) {
     console.error('Approve vendor error:', error);
     res.status(500).json({ ok: false, message: 'Failed to approve vendor' });
@@ -159,7 +183,28 @@ router.patch('/vendors/:username/decline', async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Vendor not found' });
     }
 
-    res.json({ ok: true, data: vendor });
+    // Clear the notification from Redis (individual key)
+    const notificationKey = `notification:${vendor._id.toString()}`;
+    await deleteValue(notificationKey);
+
+    // Also remove from the notifications list so admin UI updates immediately
+    try {
+      const listKey = 'notifications:admin:vendor_registrations';
+      const all = await client.lRange(listKey, 0, -1);
+      const filtered = all.filter((str) => {
+        try { const n = JSON.parse(str); return n.data?.vendorId !== vendor._id.toString(); } catch (e) { return true; }
+      });
+      await client.del(listKey);
+      if (filtered.length > 0) {
+        await client.rPush(listKey, ...filtered);
+        await client.expire(listKey, 86400);
+      }
+      console.log('🗑️ Cleared notification for vendor:', vendor.username);
+    } catch (err) {
+      console.error('⚠️ Failed to remove vendor notification from list:', err.message);
+    }
+
+    res.json({ ok: true, data: vendor, message: 'Vendor declined' });
   } catch (error) {
     console.error('Decline vendor error:', error);
     res.status(500).json({ ok: false, message: 'Failed to decline vendor' });
