@@ -1,30 +1,32 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LoginForm from "./Components/LoginForm/LoginForm";
-import RegisterForm from "./Components/RegisterForm/RegisterForm";
-import DashboardLayout from './Components/Layout/DashboardLayout';
+"use client"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import LoginForm from "./Components/LoginForm/LoginForm"
+import RegisterForm from "./Components/RegisterForm/RegisterForm"
+import DashboardLayout from "./Components/Layout/DashboardLayout"
 
 // admin pages
-import AdminDashboard from './Components/Admin/adminDashboard';
-import AdminCustomers from './Components/Admin/customers';
-import AdminOrders from './Components/Admin/orders';
-import AdminVendors from './Components/Admin/vendors';
-import AdminAnalytics from './Components/Admin/analytics';
+import AdminDashboard from "./Components/Admin/adminDashboard"
+import AdminCustomers from "./Components/Admin/customers"
+import AdminOrders from "./Components/Admin/orders"
+import AdminVendors from "./Components/Admin/vendors"
+import AdminAnalytics from "./Components/Admin/analytics"
 
 // vendor pages
-import VendorDashboard from './Components/Vendor/vendorDashboard';
-import VendorAnalytics from './Components/Vendor/analytics';
-import VendorOrders from './Components/Vendor/orders';
-import VendorProfile from './Components/Vendor/profile';
-import VendorOrderDetail from './Components/Vendor/orderDetail';
+import VendorDashboard from "./Components/Vendor/vendorDashboard"
+import VendorAnalytics from "./Components/Vendor/analytics"
+import VendorOrders from "./Components/Vendor/orders"
+import VendorProfile from "./Components/Vendor/profile"
+import VendorOrderDetail from "./Components/Vendor/orderDetail"
 
 // customer pages
-import CustomerDashboard from './Components/Customer/customerDashboard';
-import CustomerOrders from './Components/Customer/orders';
-import CustomerProfile from './Components/Customer/profile';
-import CustomerOrderDetail from './Components/Customer/orderDetail';
+import CustomerDashboard from "./Components/Customer/customerDashboard"
+import CustomerOrders from "./Components/Customer/orders"
+import CustomerProfile from "./Components/Customer/profile"
+import CustomerOrderDetail from "./Components/Customer/orderDetail"
 
-import { isAuthenticated, getUserRole } from './utils/auth';
+import Notifications from "./Components/Notifications/Notifications"
+
+import { isAuthenticated, getUserRole } from "./utils/auth"
 
 function App() {
   return (
@@ -32,8 +34,14 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        <Route path="/login" element={isAuthenticated() ? <Navigate to={`/${getUserRole()}`} replace /> : <LoginForm />} />
-        <Route path="/register" element={isAuthenticated() ? <Navigate to={`/${getUserRole()}`} replace /> : <RegisterForm />} />
+        <Route
+          path="/login"
+          element={isAuthenticated() ? <Navigate to={`/${getUserRole()}`} replace /> : <LoginForm />}
+        />
+        <Route
+          path="/register"
+          element={isAuthenticated() ? <Navigate to={`/${getUserRole()}`} replace /> : <RegisterForm />}
+        />
 
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
@@ -42,6 +50,7 @@ function App() {
           <Route path="orders" element={<AdminOrders />} />
           <Route path="vendors" element={<AdminVendors />} />
           <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         <Route path="/vendor" element={<DashboardLayout />}>
@@ -51,6 +60,7 @@ function App() {
           <Route path="orders" element={<VendorOrders />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
           <Route path="profile" element={<VendorProfile />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         <Route path="/customer" element={<DashboardLayout />}>
@@ -59,12 +69,13 @@ function App() {
           <Route path="orders" element={<CustomerOrders />} />
           <Route path="orders/:id" element={<CustomerOrderDetail />} />
           <Route path="profile" element={<CustomerProfile />} />
+          <Route path="notifications" element={<Notifications />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

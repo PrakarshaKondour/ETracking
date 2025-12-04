@@ -9,6 +9,16 @@
   --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html.dark-mode {
+  --primary: #1a2332;
+  --accent: #2dd4bf;
+  --background: #0f1419;
+  --surface: #1a2332;
+  --border: rgba(232, 236, 241, 0.08);
+  --text-primary: #e8ecf1;
+  --text-secondary: #9ca3af;
+}
+
 html,
 body {
   height: 100%;
@@ -17,6 +27,11 @@ body {
   background: linear-gradient(135deg, var(--background) 0%, #f0f2f5 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+html.dark-mode body {
+  background: linear-gradient(135deg, #0f1419 0%, #1a2a3a 100%);
 }
 
 .wrapper {
@@ -29,10 +44,23 @@ body {
   box-shadow: 0 20px 60px rgba(15, 20, 25, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   border: 1px solid rgba(15, 20, 25, 0.06);
   transition: var(--transition-base);
+  /* Fixed gap issue by ensuring proper min-height and overflow */
+  min-height: auto;
+  box-sizing: border-box;
+}
+
+html.dark-mode .wrapper {
+  background: linear-gradient(180deg, rgba(26, 35, 50, 0.95) 0%, rgba(26, 35, 50, 0.92) 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(232, 236, 241, 0.08);
+  border: 1px solid rgba(232, 236, 241, 0.1);
 }
 
 .wrapper:hover {
   box-shadow: 0 24px 72px rgba(15, 20, 25, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+html.dark-mode .wrapper:hover {
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(232, 236, 241, 0.1);
 }
 
 .wrapper h2 {
@@ -42,6 +70,10 @@ body {
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.3px;
+}
+
+html.dark-mode .wrapper h2 {
+  color: #ffffff;
 }
 
 .input-field {
@@ -64,6 +96,13 @@ body {
   font-weight: 500;
 }
 
+html.dark-mode .input-field input,
+html.dark-mode .input-field select {
+  color: var(--text-primary);
+  background: linear-gradient(180deg, rgba(45, 60, 80, 0.6) 0%, rgba(40, 55, 75, 0.4) 100%);
+  border: 1px solid rgba(232, 236, 241, 0.12);
+}
+
 .input-field select {
   appearance: none;
   padding-right: 36px;
@@ -73,6 +112,16 @@ body {
   background-position: right 10px center;
   background-size: 20px;
   padding-right: 40px;
+}
+
+/* Fixed select dropdown in dark mode */
+html.dark-mode .input-field select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+html.dark-mode .input-field select option {
+  background: var(--surface);
+  color: var(--text-primary);
 }
 
 .input-field input::placeholder {
@@ -87,7 +136,13 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 251, 0.8) 100%);
 }
 
-/* Row layout for multi-field inputs */
+html.dark-mode .input-field input:focus,
+html.dark-mode .input-field select:focus {
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.15);
+  background: linear-gradient(180deg, rgba(60, 80, 110, 0.8) 0%, rgba(50, 70, 100, 0.6) 100%);
+  border-color: var(--accent);
+}
+
 .row {
   display: flex;
   gap: 12px;
@@ -97,7 +152,6 @@ body {
   flex: 1;
 }
 
-/* Primary button */
 .btn {
   width: 100%;
   padding: 12px 14px;
@@ -127,7 +181,6 @@ body {
   transform: none;
 }
 
-/* Secondary button */
 .btn.secondary {
   margin-top: 12px;
   background: transparent;
@@ -142,7 +195,10 @@ body {
   box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1);
 }
 
-/* Link and text areas */
+html.dark-mode .btn.secondary:hover {
+  background: rgba(45, 212, 191, 0.08);
+}
+
 .link {
   margin-top: 20px;
   text-align: center;
@@ -162,7 +218,6 @@ body {
   text-decoration: underline;
 }
 
-/* Error message */
 [style*="color: crimson"] {
   color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.05);
@@ -174,7 +229,45 @@ body {
   font-weight: 500;
 }
 
-/* Responsive */
+html.dark-mode [style*="color: crimson"] {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.input-field.otp-group {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.input-field.otp-group .otp-input {
+  flex: 1;
+}
+
+.input-field.otp-group .otp-btn {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.input-field.otp-group .otp-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(45, 212, 191, 0.18);
+}
+
+.input-field.otp-group .otp-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.otp-btn {
+  margin-top: -4px;
+}
+
 @media (max-width: 640px) {
   .wrapper {
     max-width: 100%;
@@ -199,48 +292,14 @@ body {
   .wrapper {
     padding: 20px;
     margin: 3vh auto;
+    /* Ensure no overflow on small screens */
+    box-sizing: border-box;
   }
   .wrapper h2 {
     font-size: 20px;
     margin-bottom: 20px;
   }
-}
 
-.input-field.otp-group {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-}
-
-.input-field.otp-group .otp-input {
-  flex: 1;
-}
-
-/* Make the OTP button compact and neat */
-.input-field.otp-group .otp-btn {
-  flex-shrink: 0;
-  padding: 10px 14px;
-  font-size: 13px;
-  white-space: nowrap;
-  min-width: 110px;
-}
-
-/* On hover, make it feel a bit more "actiony" than other secondary buttons */
-.input-field.otp-group .otp-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(45, 212, 191, 0.18);
-}
-
-/* Disabled state readability */
-.input-field.otp-group .otp-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Responsive: stack OTP input and button on small screens */
-@media (max-width: 480px) {
   .input-field.otp-group {
     flex-direction: column;
   }
@@ -249,8 +308,4 @@ body {
     width: 100%;
     text-align: center;
   }
-}
-
-.otp-btn {
-  margin-top: -4px;
 }

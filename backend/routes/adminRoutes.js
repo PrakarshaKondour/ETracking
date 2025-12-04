@@ -240,6 +240,26 @@ router.patch('/vendors/:username/approve', async (req, res) => {
         await client.expire(listKey, 86400);
       }
       console.log('🗑️ Cleared notification for vendor:', vendor.username);
+      try {
+        const vendorNotifKey = `notifications:vendor:${vendor.username}`;
+        const notif = {
+          event: 'vendor.status_changed',
+          timestamp: new Date().toISOString(),
+          data: {
+            vendorId: vendor._id?.toString(),
+            username: vendor.username,
+            email: vendor.email,
+            newStatus: vendor.status,
+          },
+        };
+        await client.rPush(vendorNotifKey, JSON.stringify(notif));
+        await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
+        const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
+        await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
+        console.log('📣 Notified vendor about status change:', vendor.username, vendor.status);
+      } catch (e) {
+        console.warn('⚠️ Failed to add vendor notification:', e.message);
+      }
     } catch (err) {
       console.error('⚠️ Failed to remove vendor notification from list:', err.message);
     }
@@ -279,6 +299,26 @@ router.patch('/vendors/:username/decline', async (req, res) => {
         await client.expire(listKey, 86400);
       }
       console.log('🗑️ Cleared notification for vendor:', vendor.username);
+      try {
+        const vendorNotifKey = `notifications:vendor:${vendor.username}`;
+        const notif = {
+          event: 'vendor.status_changed',
+          timestamp: new Date().toISOString(),
+          data: {
+            vendorId: vendor._id?.toString(),
+            username: vendor.username,
+            email: vendor.email,
+            newStatus: vendor.status,
+          },
+        };
+        await client.rPush(vendorNotifKey, JSON.stringify(notif));
+        await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
+        const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
+        await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
+        console.log('📣 Notified vendor about status change:', vendor.username, vendor.status);
+      } catch (e) {
+        console.warn('⚠️ Failed to add vendor notification:', e.message);
+      }
     } catch (err) {
       console.error('⚠️ Failed to remove vendor notification from list:', err.message);
     }

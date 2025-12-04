@@ -122,6 +122,7 @@ export async function startVendorNotificationConsumer() {
  * Publish delayed order escalation notification into Redis for admins
  * Stores into list `notifications:admin:delayed_orders` and an individual key
  */
+// inside backend/services/notificationService.js — replace publishDelayedOrderNotification with:
 export async function publishDelayedOrderNotification(order) {
   try {
     const notificationKey = 'notifications:admin:delayed_orders';
@@ -143,11 +144,39 @@ export async function publishDelayedOrderNotification(order) {
     // set a longer expiry for escalations (7 days)
     await client.expire(notificationKey, 7 * 24 * 60 * 60);
 
+    // individual key for admin list cleanup
     const individualKey = `notification:order:${message.data.orderId}`;
     await client.set(individualKey, str, { EX: 7 * 24 * 60 * 60 });
 
+    // ALSO push a per-vendor notification list
+    try {
+      if (message.data.vendorUsername) {
+        const vendorKey = `notifications:vendor:${message.data.vendorUsername}`;
+        await client.rPush(vendorKey, str);
+        await client.expire(vendorKey, 7 * 24 * 60 * 60);
+        const vkInd = `notification:order:${message.data.orderId}:vendor:${message.data.vendorUsername}`;
+        await client.set(vkInd, str, { EX: 7 * 24 * 60 * 60 });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to push vendor notification:', e.message);
+    }
+
+    // ALSO push a per-customer notification list
+    try {
+      if (message.data.customerUsername) {
+        const customerKey = `notifications:customer:${message.data.customerUsername}`;
+        await client.rPush(customerKey, str);
+        await client.expire(customerKey, 7 * 24 * 60 * 60);
+        const ckInd = `notification:order:${message.data.orderId}:customer:${message.data.customerUsername}`;
+        await client.set(ckInd, str, { EX: 7 * 24 * 60 * 60 });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to push customer notification:', e.message);
+    }
+
     console.log('📣 Published delayed order escalation notification:', message.data.orderId);
-    // Broadcast to connected admin SSE clients
+
+    // Broadcast to connected admin SSE clients (existing behavior)
     try {
       broadcastSse({ type: 'order.delayed_escalation', data: message.data });
     } catch (e) {

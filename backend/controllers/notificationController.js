@@ -136,4 +136,97 @@ export async function clearAllNotifications(req, res) {
   }
 }
 
-export default { getAdminNotifications, clearNotification, clearOrderNotification, clearAllNotifications };
+// Add these exports to backend/controllers/notificationController.js
+
+// Get vendor notifications
+export async function getVendorNotifications(req, res) {
+  try {
+    if (!req.user || req.user.role !== 'vendor') return res.status(403).json({ ok: false, message: 'Vendor access required' });
+
+    const vendorKey = `notifications:vendor:${req.user.username}`;
+    const arr = await client.lRange(vendorKey, 0, -1);
+    const notifications = (arr || []).map((s) => {
+      try {
+        const obj = JSON.parse(s);
+        return obj;
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+  } catch (err) {
+    console.error('❌ Get vendor notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Clear all vendor notifications (for current vendor)
+export async function clearVendorNotifications(req, res) {
+  try {
+    if (!req.user || req.user.role !== 'vendor') return res.status(403).json({ ok: false, message: 'Vendor access required' });
+
+    const vendorKey = `notifications:vendor:${req.user.username}`;
+
+    // Delete list and try to delete individual keys matching notification:order:*:vendor:{username}
+    await client.del(vendorKey);
+    try {
+      const keys = await client.keys(`notification:*:vendor:${req.user.username}`);
+      if (keys && keys.length > 0) await client.del(...keys);
+    } catch (e) {
+      console.warn('⚠️ Failed to delete individual vendor notification keys:', e.message);
+    }
+
+    res.json({ ok: true, message: 'Vendor notifications cleared' });
+  } catch (err) {
+    console.error('❌ Clear vendor notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Get customer notifications
+export async function getCustomerNotifications(req, res) {
+  try {
+    if (!req.user || req.user.role !== 'customer') return res.status(403).json({ ok: false, message: 'Customer access required' });
+
+    const customerKey = `notifications:customer:${req.user.username}`;
+    const arr = await client.lRange(customerKey, 0, -1);
+    const notifications = (arr || []).map((s) => {
+      try {
+        const obj = JSON.parse(s);
+        return obj;
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+  } catch (err) {
+    console.error('❌ Get customer notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Clear all customer notifications (for current customer)
+export async function clearCustomerNotifications(req, res) {
+  try {
+    if (!req.user || req.user.role !== 'customer') return res.status(403).json({ ok: false, message: 'Customer access required' });
+
+    const customerKey = `notifications:customer:${req.user.username}`;
+    await client.del(customerKey);
+
+    try {
+      const keys = await client.keys(`notification:*:customer:${req.user.username}`);
+      if (keys && keys.length > 0) await client.del(...keys);
+    } catch (e) {
+      console.warn('⚠️ Failed to delete individual customer notification keys:', e.message);
+    }
+
+    res.json({ ok: true, message: 'Customer notifications cleared' });
+  } catch (err) {
+    console.error('❌ Clear customer notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+}
+  
+export default { getAdminNotifications, clearNotification, clearOrderNotification, clearAllNotifications, getVendorNotifications, clearVendorNotifications, getCustomerNotifications, clearCustomerNotifications };

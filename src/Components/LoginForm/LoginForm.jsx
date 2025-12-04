@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import "./LoginForm.css"
-import { setAuth, isAuthenticated, getUserRole } from "../../utils/auth"
+import { setAuth } from "../../utils/auth"
 
 const LoginForm = () => {
   useEffect(() => {
@@ -66,7 +66,6 @@ const LoginForm = () => {
     }
   }
 
-  // redirect away from login if already authenticated
   useEffect(() => {
     try {
       const auth = require("../../utils/auth")
