@@ -16,11 +16,13 @@ import VendorDashboard from './Components/Vendor/vendorDashboard';
 import VendorAnalytics from './Components/Vendor/analytics';
 import VendorOrders from './Components/Vendor/orders';
 import VendorProfile from './Components/Vendor/profile';
+import VendorOrderDetail from './Components/Vendor/orderDetail';
 
 // customer pages
 import CustomerDashboard from './Components/Customer/customerDashboard';
 import CustomerOrders from './Components/Customer/orders';
 import CustomerProfile from './Components/Customer/profile';
+import CustomerOrderDetail from './Components/Customer/orderDetail';
 
 import { isAuthenticated, getUserRole } from './utils/auth';
 
@@ -47,6 +49,7 @@ function App() {
           <Route path="dashboard" element={<VendorDashboard />} />
           <Route path="analytics" element={<VendorAnalytics />} />
           <Route path="orders" element={<VendorOrders />} />
+          <Route path="orders/:id" element={<VendorOrderDetail />} />
           <Route path="profile" element={<VendorProfile />} />
         </Route>
 
@@ -54,6 +57,7 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<CustomerDashboard />} />
           <Route path="orders" element={<CustomerOrders />} />
+          <Route path="orders/:id" element={<CustomerOrderDetail />} />
           <Route path="profile" element={<CustomerProfile />} />
         </Route>
 
