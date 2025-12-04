@@ -10,7 +10,10 @@ body {
     "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafb;
+  background-color: #0a0e14;
+  /* Default to dark mode background */
+  color: #e8f4f8;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 code {
@@ -20,4 +23,10 @@ code {
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* Light mode styles */
+html:not(.dark-mode) body {
+  background-color: #f8fafb;
+  color: #0f1419;
 }

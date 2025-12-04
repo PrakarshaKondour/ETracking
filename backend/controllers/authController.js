@@ -1,4 +1,5 @@
 import { setValue, getValue, deleteValue } from '../utils/redisHelper.js';
+import { validatePhoneNumber } from '../utils/validators.js';
 
 /**
  * Generate and store a 6-digit OTP for a phone number.
@@ -6,19 +7,24 @@ import { setValue, getValue, deleteValue } from '../utils/redisHelper.js';
  * Returns the generated OTP (for use in development/testing).
  */
 export async function sendOTP(phone) {
-  if (!phone) throw new Error('Phone number is required');
+  if (!phone) return { success: false, message: 'Phone number is required' };
+  
+  if (!validatePhoneNumber(phone)) {
+    return { success: false, message: 'Invalid phone number. Must be 10 digits (Indian format)' };
+  }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const key = `otp:${phone}`;
 
   const saved = await setValue(key, otp, 300);
   if (!saved) {
-    throw new Error('Failed to store OTP');
+    return { success: false, message: 'Failed to store OTP' };
   }
 
   // In production you would send the OTP via SMS here.
-  return otp;
+  return { success: true, message: 'OTP sent successfully', otp };
 }
+
 
 /**
  * Verify an OTP for a phone number. On success, the OTP is deleted from Redis.
@@ -26,6 +32,9 @@ export async function sendOTP(phone) {
  */
 export async function verifyOTP(phone, otp) {
   if (!phone) return { success: false, message: 'Phone required' };
+  if (!validatePhoneNumber(phone)) {
+    return { success: false, message: 'Invalid phone number. Must be 10 digits (Indian format)' };
+  }
   if (!otp) return { success: false, message: 'OTP required' };
 
   const key = `otp:${phone}`;

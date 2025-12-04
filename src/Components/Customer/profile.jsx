@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useNavigate } from 'react-router-dom'
+import { clearAuth } from '../../utils/auth'
 import "../../Components/Layout/Page.css"
 import { apiCall } from "../../utils/api"
 
@@ -39,6 +41,10 @@ const CustomerProfile = () => {
     <div className="page">
       <h2>Profile Information</h2>
       <div className="panel">
+        {/* Delete account area */}
+        <div style={{ textAlign: 'right', marginBottom: 12 }}>
+          <DeleteButton profile={profile} />
+        </div>
         {profile ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
             <div>
@@ -159,3 +165,44 @@ const CustomerProfile = () => {
 }
 
 export default CustomerProfile
+
+function DeleteButton({ profile }) {
+  const navigate = useNavigate()
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!profile) return
+    const ok = window.confirm('Are you sure you want to permanently delete your account? This cannot be undone.')
+    if (!ok) return
+
+    setDeleting(true)
+    try {
+      const res = await apiCall('/api/customer/delete', { method: 'DELETE' })
+      if (res && res.ok) {
+        // clear client-side auth and redirect to login
+        clearAuth()
+        alert('Your account has been deleted.')
+        navigate('/login', { replace: true })
+        window.location.reload()
+        return
+      }
+      alert(res?.message || 'Failed to delete account')
+    } catch (e) {
+      console.error('Delete account failed', e)
+      alert('Server error while deleting account')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <button
+      className="logout-btn"
+      onClick={handleDelete}
+      disabled={deleting}
+      style={{ background: 'linear-gradient(135deg,#ff7a7a,#ff4d4d)', border: 'none' }}
+    >
+      {deleting ? 'Deleting…' : 'Delete Account'}
+    </button>
+  )
+}
