@@ -22,6 +22,7 @@ const CustomerSchema = new mongoose.Schema({
       message: "Invalid email format"
     }
   },
+
   phone: {
     type: String,
     required: true,
@@ -41,6 +42,19 @@ const CustomerSchema = new mongoose.Schema({
   },
   otp: String,
   otpExpires: Date,
+    validate: {
+      validator: function (v) {
+        return /^[6-9]\d{9}$/.test(v);  // Indian number validation
+      },
+      message: "Invalid Indian phone number"
+    }
+  },
+  isVerified: { type: Boolean, default: false },
+  otp: String,
+  otpExpires: Date,
+  fullName: String,
+  address: String,
+  phone: String,
 }, { timestamps: true });
 
 export default mongoose.model('Customer', CustomerSchema);
