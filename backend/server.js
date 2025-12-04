@@ -12,16 +12,16 @@ import Customer from './models/customer.js';
 import Vendor from './models/vendor.js';
 import Order from './models/Order.js';
 import './config/redis.js';
-import { register, updateOrderMetrics } from './config/prometheus.js';
+import { register, updateOrderMetrics, updateDelayedOrdersMetric } from './config/prometheus.js';
 import { metricsMiddleware } from './middleware/metricsMiddleware.js';
 import './config/redis.js';
 import { connectRabbitMQ } from './config/rabbitmq.js';
-import { startVendorNotificationConsumer, publishVendorRegistered } from './services/notificationService.js';
+import { startVendorNotificationConsumer, publishVendorRegistered, publishDelayedOrderNotification } from './services/notificationService.js';
+import redisClient from './config/redis.js';
 import rateLimit from './middleware/rateLimit.js';
 import { setValue, getValue } from './utils/redisHelper.js';
 import { sendOTP , verifyOTP } from './controllers/authController.js';
 import { validateEmail, validatePhoneNumber } from './utils/validators.js';
-// import stuff guys(redis.js) from config
 
 
 dotenv.config();
@@ -57,6 +57,75 @@ connectDB();
     console.error('⚠️ RabbitMQ setup failed (notifications will not work):', err.message);
   }
 })();
+
+// Background job: Update Prometheus metrics every 5 minutes (300000 ms)
+setInterval(async () => {
+  try {
+    console.log('📊 Updating Prometheus metrics...');
+    await updateOrderMetrics(Order);
+    await updateDelayedOrdersMetric(Order);
+    console.log('✅ Prometheus metrics updated');
+    // Check for escalations (orders delayed > 48 hours)
+    try {
+      await checkForEscalations();
+    } catch (e) {
+      console.error('❌ Escalation check failed:', e.message);
+    }
+  } catch (error) {
+    console.error('❌ Error updating Prometheus metrics:', error.message);
+  }
+}, 300000); // Every 5 minutes
+
+// Initial metrics update on server start
+(async () => {
+  try {
+    await updateOrderMetrics(Order);
+    await updateDelayedOrdersMetric(Order);
+    console.log('✅ Initial metrics loaded');
+    // Run one-time escalation check on startup
+    try {
+      await checkForEscalations();
+    } catch (e) {
+      console.error('❌ Initial escalation check failed:', e.message);
+    }
+  } catch (error) {
+    console.error('❌ Error loading initial metrics:', error.message);
+  }
+})();
+
+/**
+ * Find orders delayed > 48 hours and publish admin escalation notifications
+ */
+async function checkForEscalations() {
+  try {
+    const ESCALATE_HOURS = 48;
+    const now = new Date();
+    const threshold = new Date(now - ESCALATE_HOURS * 60 * 60 * 1000);
+
+    // Terminal statuses
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
+
+    const orders = await Order.find({
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: threshold }
+    });
+
+    for (const o of orders) {
+      const orderId = o._id?.toString();
+      const notifKey = `notification:order:${orderId}`;
+      const exists = await redisClient.get(notifKey);
+      if (exists) continue; // already notified
+
+      // Publish delayed order escalation notification
+      const published = await publishDelayedOrderNotification(o);
+      if (published) {
+        console.log('Escalation notification created for order', orderId);
+      }
+    }
+  } catch (err) {
+    console.error('❌ checkForEscalations error:', err.message);
+  }
+}
 
 async function findUserByUsername(username) {
   let user = await Admin.findOne({ username });
