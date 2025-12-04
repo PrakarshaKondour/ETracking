@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import "./LoginForm.css"
-import { setAuth } from "../../utils/auth"
+import { setAuth, isAuthenticated, getUserRole } from "../../utils/auth"
 
 const LoginForm = () => {
   useEffect(() => {
@@ -14,7 +14,6 @@ const LoginForm = () => {
   }, [])
 
   const navigate = useNavigate()
-  const { isAuthenticated } = require("../../utils/auth")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(false)

@@ -31,7 +31,7 @@ const RegisterForm = () => {
 
     // 🔐 Require OTP for customer/vendor
     if ((role === 'vendor' || role === 'customer') && !otp) {
-      setError('Please enter the OTP sent to your phone.');
+      setError('Please enter the OTP sent to your email.');
       return;
     }
 
@@ -150,60 +150,58 @@ const RegisterForm = () => {
               <button
                 type="button"
                 className="btn secondary otp-btn"
-                onClick={
-                  async () => {
-                    setError('');
+                onClick={async () => {
+                  setError('');
 
-                    //send OTP
-                    if(!otpSent){
-                      if(role !== 'vendor' && role !== 'customer'){
-                        setError('OTP is only required for customer and vendor.');
-                        return;
-                      }
-                      if(!phone){
-                        setError('Phone is required to send OTP.');
-                        return;
-                      }
-
-                      try{
-                        setOtpSending(true);
-                        const res = await fetch(`${API}/send-otp`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ phone }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-
-                        if(res.ok && data.ok){
-                          setOtpSent(true);
-                          if(data.otp) {
-                            console.log('Dev OTP:', data.otp);
-                            window.alert(`Your OTP: ${data.otp}`);
-                          } else {
-                            window.alert('OTP sent to your phone.');
-                          }
-                        } else {
-                          setError(data.message || 'Failed to send OTP');
-                        }
-                      } catch(err) {
-                        console.error(err);
-                        setError('Failed to send OTP. Try again.');
-                      } finally {
-                        setOtpSending(false);
-                      }
-                    } else {
-                      if(!otp){
-                        setError('Please enter the OTP sent to your phone.');
-                        return;
-                      }
-                      window.alert('OTP entered. Now click register to complete sign up.');
+                  if (!otpSent) {
+                    if (role !== 'vendor' && role !== 'customer') {
+                      setError('OTP is only required for customer and vendor.');
+                      return;
                     }
+                    if (!email) {
+                      setError('Email is required to send OTP.');
+                      return;
+                    }
+
+                    try {
+                      setOtpSending(true);
+                      const res = await fetch(`${API}/send-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+
+                      if (res.ok && data.ok) {
+                        setOtpSent(true);
+                        if (data.otp) {
+                          console.log('Dev OTP:', data.otp);
+                          window.alert(`Your OTP: ${data.otp}`);
+                        } else {
+                          window.alert('OTP sent to your email.');
+                        }
+                      } else {
+                        setError(data.message || 'Failed to send OTP');
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      setError('Failed to send OTP. Try again.');
+                    } finally {
+                      setOtpSending(false);
+                    }
+                  } else {
+                    if (!otp) {
+                      setError('Please enter the OTP sent to your email.');
+                      return;
+                    }
+                    window.alert('OTP entered. Now click register to complete sign up.');
                   }
-                }
-                disabled={otpSending || !phone}
+                }}
+                disabled={otpSending || !email}
               >
                 {otpSending ? 'Sending...' : otpSent ? 'Resend OTP' : 'Send OTP'}
               </button>
+
             </div>  
           </>
         )}

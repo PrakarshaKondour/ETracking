@@ -151,42 +151,35 @@ app.post('/login', async (req, res) => {
 
 app.post('/send-otp', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.status(400).json({ ok: false, message: 'Phone number required' });
-    }
+    const { email } = req.body;
 
-    const result = await sendOTP(phone);
+    const result = await sendOTP(email);
 
     if (!result.success) {
-    return res.status(400).json(result);
+      return res.status(400).json({ ok: false, message: result.message });
     }
 
-const otp = result.otp;   // <-- Here is the fix
+    // If you want to expose dev OTP:
+    // return res.json({ ok: true, message: result.message, otp: result.otp });
 
-    const response = { ok: true, message: 'OTP sent' };
-
-    if(process.env.NODE_ENV !== 'production') {
-      response.otp = otp;
-    }
-    res.json(response);
-  } catch (error) {
-    console.error('Send OTP error:', error.message);
-    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+    res.json({ ok: true, message: 'OTP sent' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
 
 app.post('/verify-otp', async (req, res) => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) {
-      return res.status(400).json({ ok: false, message: 'Phone number and OTP required' });
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ ok: false, message: 'Email and OTP required' });
     }
-    const result = await verifyOTP(phone, otp);
+    const result = await verifyOTP(email, otp);
     if (result.success) {
       res.json({ ok: true, message: 'OTP verified' });
     } else {
-      res.status(400).json({ ok: false, message: 'Invalid OTP' });
+      res.status(400).json({ ok: false, message: result.message || 'Invalid OTP' });
     }
   } catch (error) {
     console.error('❌ Verify OTP error:', error.message);
@@ -226,21 +219,18 @@ app.post('/register', async (req, res) => {
     }
 
 if (role === 'customer' || role === 'vendor') {
-      if (!phone) {
-        return res.status(400).json({ ok: false, message: 'Phone is required for OTP verification' });
-      }
-      if (!otp) {
-        return res.status(400).json({ ok: false, message: 'OTP is required' });
-      }
+  if (!otp) {
+    return res.status(400).json({ ok: false, message: 'OTP is required' });
+  }
 
-      const otpResult = await verifyOTP(phone, otp);
-      if (!otpResult.success) {
-        return res.status(400).json({
-          ok: false,
-          message: otpResult.message || 'OTP verification failed',
-        });
-      }
-    }
+  const otpResult = await verifyOTP(email, otp);
+  if (!otpResult.success) {
+    return res.status(400).json({
+      ok: false,
+      message: otpResult.message || 'OTP verification failed',
+    });
+  }
+}
 
     const existingUser = await Model.findOne({ username });
     if (existingUser) {
