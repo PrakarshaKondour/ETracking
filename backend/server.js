@@ -20,6 +20,7 @@ import { startVendorNotificationConsumer, publishVendorRegistered } from './serv
 import rateLimit from './middleware/rateLimit.js';
 import { setValue, getValue } from './utils/redisHelper.js';
 import { sendOTP , verifyOTP } from './controllers/authController.js';
+import { validateEmail, validatePhoneNumber } from './utils/validators.js';
 // import stuff guys(redis.js) from config
 
 
@@ -155,7 +156,14 @@ app.post('/send-otp', async (req, res) => {
       return res.status(400).json({ ok: false, message: 'Phone number required' });
     }
 
-    const otp = await sendOTP(phone);
+    const result = await sendOTP(phone);
+
+    if (!result.success) {
+    return res.status(400).json(result);
+    }
+
+const otp = result.otp;   // <-- Here is the fix
+
     const response = { ok: true, message: 'OTP sent' };
 
     if(process.env.NODE_ENV !== 'production') {
@@ -193,6 +201,16 @@ app.post('/register', async (req, res) => {
 
     if (!username || !password || !email || !role || !otp || !phone) {
       return res.status(400).json({ ok: false, message: 'All fields required' });
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      return res.status(400).json({ ok: false, message: 'Invalid email format' });
+    }
+
+    // Validate phone number (10 digits, Indian format)
+    if (!validatePhoneNumber(phone)) {
+      return res.status(400).json({ ok: false, message: 'Phone number must be 10 digits (Indian format)' });
     }
 
     let Model;

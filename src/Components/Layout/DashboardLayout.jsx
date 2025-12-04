@@ -1,76 +1,127 @@
-import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, NavLink } from 'react-router-dom';
-import './Layout.css';
-import { clearAuth, getUserRole } from '../../utils/auth';
+"use client"
+
+import { useEffect, useState } from "react"
+import { Outlet, useNavigate, NavLink } from "react-router-dom"
+import "./Layout.css"
+import { clearAuth, getUserRole } from "../../utils/auth"
 
 const DashboardLayout = () => {
-  const navigate = useNavigate();
-  const role = getUserRole();
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate()
+  const role = getUserRole()
+  const [open, setOpen] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode")
+    return saved !== null ? JSON.parse(saved) : true // default to true (dark mode)
+  })
 
   useEffect(() => {
-    if (!role) navigate('/login', { replace: true });
-  }, [navigate, role]);
+    if (!role) navigate("/login", { replace: true })
+  }, [navigate, role])
+
+  useEffect(() => {
+    // update document title based on role so browser tab is meaningful
+    try {
+      if (role) {
+        document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} - ETracking`
+      } else {
+        document.title = "ETracking"
+      }
+    } catch (e) {
+      // ignore if server-side rendering or document not available
+    }
+  }, [role])
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark-mode")
+    } else {
+      document.documentElement.classList.remove("dark-mode")
+    }
+    localStorage.setItem("darkMode", JSON.stringify(isDarkMode))
+  }, [isDarkMode])
 
   const handleLogout = () => {
-    clearAuth();
-    navigate('/login', { replace: true });
-    setTimeout(() => window.location.reload(), 20);
-  };
+    clearAuth()
+    navigate("/login", { replace: true })
+    setTimeout(() => window.location.reload(), 20)
+  }
+
+  const handleToggleDarkMode = () => {
+    setIsDarkMode((prev) => !prev)
+  }
 
   const links = {
     admin: [
-      { to: 'dashboard', label: 'Dashboard' },
-      { to: 'customers', label: 'Customers' },
-      { to: 'orders', label: 'Orders' },
-      { to: 'vendors', label: 'Vendors' },
-      { to: 'analytics', label: 'Analytics' },
+      { to: "dashboard", label: "Dashboard" },
+      { to: "customers", label: "Customers" },
+      { to: "orders", label: "Orders" },
+      { to: "vendors", label: "Vendors" },
+      { to: "analytics", label: "Analytics" },
     ],
     vendor: [
-      { to: 'dashboard', label: 'Dashboard' },
-      { to: 'orders', label: 'Orders' },
-      { to: 'analytics', label: 'Analytics' },
-      { to: 'profile', label: 'Profile' },
+      { to: "dashboard", label: "Dashboard" },
+      { to: "orders", label: "Orders" },
+      { to: "analytics", label: "Analytics" },
+      { to: "profile", label: "Profile" },
     ],
     customer: [
-      { to: 'dashboard', label: 'Dashboard' },
-      { to: 'orders', label: 'Orders' },
-      { to: 'profile', label: 'Profile' },
+      { to: "dashboard", label: "Dashboard" },
+      { to: "orders", label: "Orders" },
+      { to: "profile", label: "Profile" },
     ],
-  };
+  }
 
   // username for friendly fallbacks
   const username = (() => {
     try {
-      const u = localStorage.getItem('user') || sessionStorage.getItem('user');
-      return u ? JSON.parse(u).username : null;
+      const u = localStorage.getItem("user") || sessionStorage.getItem("user")
+      return u ? JSON.parse(u).username : null
     } catch {
-      return null;
+      return null
     }
-  })();
+  })()
 
   return (
     <div className="app-shell">
       {/* collapsible sidebar */}
-      <aside className={`sidebar ${open ? 'open' : ''}`} aria-hidden={!open && window.innerWidth < 880}>
+      <aside className={`sidebar ${open ? "open" : ""}`} aria-hidden={!open && window.innerWidth < 880}>
         <div className="sidebar-inner">
-          <div className="brand">MyApp</div>
+          <div className="brand">OrderJourney</div>
           <nav>
-            {(links[role] || []).map(l => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                className="side-link"
-                onClick={() => setOpen(false)}
-              >
+            {(links[role] || []).map((l) => (
+              <NavLink key={l.to} to={l.to} className="side-link" onClick={() => setOpen(false)}>
                 {l.label}
               </NavLink>
             ))}
           </nav>
 
           <div className="sidebar-footer">
-            <div className="who">Signed in as <strong>{username ?? role}</strong></div>
-            <button className="logout-btn sidebar-logout" onClick={handleLogout}>Logout</button>
+            <div className="who">
+              Signed in as <strong>{username ?? role}</strong>
+            </div>
+
+            <button
+              className="dark-mode-toggle"
+              onClick={handleToggleDarkMode}
+              aria-label="Toggle dark mode"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? (
+                <>
+                  <span className="toggle-icon">☀️</span>
+                  <span className="toggle-text">Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <span className="toggle-icon">🌙</span>
+                  <span className="toggle-text">Dark Mode</span>
+                </>
+              )}
+            </button>
+
+            <button className="logout-btn sidebar-logout" onClick={handleLogout}>
+              Logout
+            </button>
           </div>
         </div>
       </aside>
@@ -80,19 +131,17 @@ const DashboardLayout = () => {
 
       <div className="main-area">
         <header className="topbar">
-          <button
-            className="hamburger"
-            aria-label="Open menu"
-            onClick={() => setOpen(v => !v)}
-          >
+          <button className="hamburger" aria-label="Open menu" onClick={() => setOpen((v) => !v)}>
             <span className="hamburger-line" />
             <span className="hamburger-line" />
             <span className="hamburger-line" />
           </button>
 
           <div className="topbar-right">
-            <div className="role-label">{role?.toUpperCase() || ''}</div>
-            <button className="logout-btn topbar-logout" onClick={handleLogout}>Logout</button>
+            <div className="role-label">{role?.toUpperCase() || ""}</div>
+            <button className="logout-btn topbar-logout" onClick={handleLogout}>
+              Logout
+            </button>
           </div>
         </header>
 
@@ -101,7 +150,7 @@ const DashboardLayout = () => {
         </main>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DashboardLayout;
+export default DashboardLayout

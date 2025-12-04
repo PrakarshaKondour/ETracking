@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Customer from '../models/customer.js';
 import Order from '../models/Order.js';
+import { deleteValue } from '../utils/redisHelper.js';
 
 const router = express.Router();
 
@@ -75,6 +76,37 @@ router.get('/dashboard', async (req, res) => {
   } catch (error) {
     console.error('Dashboard error:', error);
     res.status(500).json({ ok: false, message: 'Failed to fetch dashboard' });
+  }
+});
+
+// Delete customer account (protected)
+// DELETE /api/customer/delete
+router.delete('/delete', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ ok: false, message: 'Customer access required' });
+    }
+
+    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const username = req.user.username;
+
+    // Delete customer record
+    const deleted = await Customer.findByIdAndDelete(customerId);
+    if (!deleted) {
+      return res.status(404).json({ ok: false, message: 'Customer not found' });
+    }
+
+    // Remove related orders
+    await Order.deleteMany({ customerUsername: username });
+
+    // Revoke token in Redis
+    await deleteValue(`user:${req.user.id}:token`);
+
+    console.log('🗑️ Customer account deleted:', username, req.user.id);
+    res.json({ ok: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to delete account' });
   }
 });
 
