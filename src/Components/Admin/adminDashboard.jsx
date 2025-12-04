@@ -86,7 +86,6 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
-      <p className="page-subtitle">Real-time insights into platform activity and growth metrics</p>
 
       {/* Pending Vendor Registrations Section */}
       {notifications.length > 0 && (
