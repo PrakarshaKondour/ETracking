@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Customer from '../models/customer.js';
 import Order from '../models/Order.js';
-import { deleteValue } from '../utils/redisHelper.js';
+import { deleteValue, setValue, getValue } from '../utils/redisHelper.js';
 
 const router = express.Router();
 
@@ -51,6 +51,20 @@ router.get('/orders', async (req, res) => {
   } catch (error) {
     console.error('Orders error:', error);
     res.status(500).json({ ok: false, message: 'Failed to fetch orders' });
+  }
+});
+
+// Get single customer order (ownership enforced)
+router.get('/orders/:orderId', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') return res.status(403).json({ ok: false, message: 'Customer access required' });
+    const { orderId } = req.params;
+    const order = await Order.findOne({ _id: orderId, customerUsername: req.user.username });
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+    res.json({ ok: true, order });
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to fetch order' });
   }
 });
 
@@ -107,6 +121,110 @@ router.delete('/delete', async (req, res) => {
   } catch (error) {
     console.error('Delete account error:', error);
     res.status(500).json({ ok: false, message: 'Failed to delete account' });
+  }
+});
+
+// Get delayed orders for customer
+// GET /api/customer/delayed-orders
+router.get('/delayed-orders', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ ok: false, message: 'Customer access required' });
+    }
+
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
+
+    // Find customer's orders that are delayed
+    let delayedOrders = await Order.find({
+      customerUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    }).sort({ createdAt: -1 });
+
+    // Filter out orders acknowledged by this customer
+    const filtered = [];
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:customer:${req.user.username}`;
+      const ack = await getValue(ackKey);
+      if (!ack) filtered.push(o);
+    }
+
+    console.log('⏱️ Found', filtered.length, 'delayed orders for customer (after ack filter):', req.user.username);
+    res.json({ ok: true, delayedOrders: filtered, count: filtered.length });
+  } catch (error) {
+    console.error('Delayed orders error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to fetch delayed orders' });
+  }
+});
+
+// Acknowledge (clear) a delayed-order notification for this customer
+router.post('/notifications/ack/:orderId', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') return res.status(403).json({ ok: false, message: 'Customer access required' });
+    const { orderId } = req.params;
+    // Verify ownership
+    const order = await Order.findOne({ _id: orderId, customerUsername: req.user.username });
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found or access denied' });
+
+    const ackKey = `ack:order:${orderId}:customer:${req.user.username}`;
+    // Set a 7 day TTL
+    await setValue(ackKey, true, 7 * 24 * 60 * 60);
+
+    res.json({ ok: true, message: 'Acknowledged' });
+  } catch (error) {
+    console.error('Ack error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to acknowledge' });
+  }
+});
+
+// Get customer notifications
+router.get('/notifications', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ ok: false, message: 'Customer access required' });
+    }
+
+    const customerKey = `notifications:customer:${req.user.username}`;
+    const arr = await client.lRange(customerKey, 0, -1);
+    const notifications = (arr || []).map((s) => {
+      try {
+        return JSON.parse(s);
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+  } catch (err) {
+    console.error('❌ Get customer notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+});
+
+// Clear all customer notifications
+router.delete('/notifications', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ ok: false, message: 'Customer access required' });
+    }
+
+    const customerKey = `notifications:customer:${req.user.username}`;
+    await client.del(customerKey);
+
+    try {
+      const keys = await client.keys(`notification:*:customer:${req.user.username}`);
+      if (keys && keys.length > 0) await client.del(...keys);
+    } catch (e) {
+      console.warn('⚠️ Failed to delete individual customer notification keys:', e.message);
+    }
+
+    res.json({ ok: true, message: 'Customer notifications cleared' });
+  } catch (err) {
+    console.error('❌ Clear customer notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
   }
 });
 

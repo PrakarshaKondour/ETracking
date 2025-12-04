@@ -6,8 +6,6 @@ import { apiCall } from "../../utils/api"
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null)
-  const [notifications, setNotifications] = useState([])
-  const [clearing, setClearing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -24,21 +22,7 @@ const AdminDashboard = () => {
       }
     }
 
-    async function loadNotifications() {
-      try {
-        const data = await apiCall("/api/notifications")
-        setNotifications(data?.data?.notifications || [])
-      } catch (err) {
-        console.error("Failed to load notifications:", err)
-      }
-    }
-
     load()
-    loadNotifications()
-
-    // Poll for notifications every 5 seconds
-    const notificationInterval = setInterval(loadNotifications, 5000)
-    return () => clearInterval(notificationInterval)
   }, [])
 
   if (loading)
@@ -58,33 +42,9 @@ const AdminDashboard = () => {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <h2>System Overview</h2>
-          <p className="page-subtitle">Real-time insights into platform activity and growth metrics</p>
-        </div>
-        {notifications.length > 0 && (
-          <div>
-            <button
-              className="btn secondary"
-              onClick={async () => {
-                try {
-                  setClearing(true)
-                  await apiCall('/api/notifications', { method: 'DELETE' })
-                  setNotifications([])
-                } catch (err) {
-                  console.error('Failed to clear notifications:', err)
-                  window.alert('Failed to clear notifications')
-                } finally {
-                  setClearing(false)
-                }
-              }}
-              disabled={clearing}
-            >
-              {clearing ? 'Clearing...' : 'Clear All Notifications'}
-            </button>
-          </div>
-        )}
+      <div>
+        <h2>System Overview</h2>
+        <p className="page-subtitle">Real-time insights into platform activity and growth metrics</p>
       </div>
 
       {/* Pending Vendor Registrations Section */}

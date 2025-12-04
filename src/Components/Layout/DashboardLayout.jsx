@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Outlet, useNavigate, NavLink } from "react-router-dom"
 import "./Layout.css"
 import { clearAuth, getUserRole } from "../../utils/auth"
+import { apiCall } from "../../utils/api"
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
@@ -11,23 +12,19 @@ const DashboardLayout = () => {
   const [open, setOpen] = useState(false)
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode")
-    return saved !== null ? JSON.parse(saved) : true // default to true (dark mode)
+    return saved !== null ? JSON.parse(saved) : true
   })
+  const [notificationCount, setNotificationCount] = useState(0)
 
   useEffect(() => {
     if (!role) navigate("/login", { replace: true })
   }, [navigate, role])
 
   useEffect(() => {
-    // update document title based on role so browser tab is meaningful
-    try {
-      if (role) {
-        document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} - ETracking`
-      } else {
-        document.title = "ETracking"
-      }
-    } catch (e) {
-      // ignore if server-side rendering or document not available
+    if (role) {
+      document.title = `${role.charAt(0).toUpperCase() + role.slice(1)} - ETracking`
+    } else {
+      document.title = "ETracking"
     }
   }, [role])
 
@@ -39,6 +36,25 @@ const DashboardLayout = () => {
     }
     localStorage.setItem("darkMode", JSON.stringify(isDarkMode))
   }, [isDarkMode])
+
+    useEffect(() => {
+  async function loadNotificationCount() {
+    try {
+      const rolePath = role === 'admin' ? '/api/notifications' : `/api/${role}/notifications`;
+      const data = await apiCall(rolePath);
+
+      // 👇 handle both { data: { notifications } } and { notifications }
+      const list = data?.data?.notifications || data?.notifications || [];
+      setNotificationCount(list.length);
+    } catch (err) {
+      console.error("Failed to load notification count:", err);
+    }
+  }
+
+  loadNotificationCount();
+  const interval = setInterval(loadNotificationCount, 5000);
+  return () => clearInterval(interval);
+}, [role]);
 
   const handleLogout = () => {
     clearAuth()
@@ -57,21 +73,23 @@ const DashboardLayout = () => {
       { to: "orders", label: "Orders" },
       { to: "vendors", label: "Vendors" },
       { to: "analytics", label: "Analytics" },
+      { to: "notifications", label: "Notifications" },
     ],
     vendor: [
       { to: "dashboard", label: "Dashboard" },
       { to: "orders", label: "Orders" },
       { to: "analytics", label: "Analytics" },
       { to: "profile", label: "Profile" },
+      { to: "notifications", label: "Notifications" },
     ],
     customer: [
       { to: "dashboard", label: "Dashboard" },
       { to: "orders", label: "Orders" },
       { to: "profile", label: "Profile" },
+      { to: "notifications", label: "Notifications" },
     ],
   }
 
-  // username for friendly fallbacks
   const username = (() => {
     try {
       const u = localStorage.getItem("user") || sessionStorage.getItem("user")
@@ -83,10 +101,9 @@ const DashboardLayout = () => {
 
   return (
     <div className="app-shell">
-      {/* collapsible sidebar */}
       <aside className={`sidebar ${open ? "open" : ""}`} aria-hidden={!open && window.innerWidth < 880}>
         <div className="sidebar-inner">
-          <div className="brand">OrderJourney</div>
+          <div className="brand">TrackJourney</div>
           <nav>
             {(links[role] || []).map((l) => (
               <NavLink key={l.to} to={l.to} className="side-link" onClick={() => setOpen(false)}>
@@ -126,7 +143,6 @@ const DashboardLayout = () => {
         </div>
       </aside>
 
-      {/* overlay for small screens */}
       {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
 
       <div className="main-area">
@@ -138,6 +154,17 @@ const DashboardLayout = () => {
           </button>
 
           <div className="topbar-right">
+            <button
+              className="notification-bell"
+              onClick={() => navigate(`/${role}/notifications`)}
+              title="View Notifications"
+              aria-label="Notifications"
+            >
+              🔔
+              {notificationCount > 0 && (
+                <span className="notification-badge">{notificationCount > 9 ? "9+" : notificationCount}</span>
+              )}
+            </button>
             <div className="role-label">{role?.toUpperCase() || ""}</div>
             <button className="logout-btn topbar-logout" onClick={handleLogout}>
               Logout

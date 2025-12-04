@@ -14,7 +14,6 @@ const LoginForm = () => {
   }, [])
 
   const navigate = useNavigate()
-  const { isAuthenticated } = require("../../utils/auth")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(false)
@@ -67,7 +66,6 @@ const LoginForm = () => {
     }
   }
 
-  // redirect away from login if already authenticated
   useEffect(() => {
     try {
       const auth = require("../../utils/auth")

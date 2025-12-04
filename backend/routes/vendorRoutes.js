@@ -4,6 +4,10 @@ import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Vendor from '../models/vendor.js';
 import Order from '../models/Order.js';
 import { ORDER_STATUS_FLOW } from "../constants/orderStatus.js";
+import { setValue, getValue } from '../utils/redisHelper.js';
+import { deleteValue } from '../utils/redisHelper.js';
+import { broadcastSse } from '../services/notificationService.js';
+import client from '../config/redis.js';
 
 
 const router = express.Router();
@@ -53,6 +57,20 @@ router.get('/orders', async (req, res) => {
   }
 });
 
+// Get single vendor order by id (vendor ownership enforced)
+router.get('/orders/:orderId', async (req, res) => {
+  try {
+    if (req.user.role !== 'vendor') return res.status(403).json({ ok: false, message: 'Vendor access required' });
+    const { orderId } = req.params;
+    const order = await Order.findOne({ _id: orderId, vendorUsername: req.user.username });
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+    res.json({ ok: true, order });
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to fetch order' });
+  }
+});
+
 
 // ✅ NEW: Vendor updates order status
 router.patch('/orders/:orderId/status', async (req, res) => {
@@ -88,9 +106,70 @@ router.patch('/orders/:orderId/status', async (req, res) => {
     order.status = status;
     await order.save();
 
-    console.log(
-      `✅ Order ${orderId} status updated to "${status}" by vendor ${req.user.username}`
-    );
+    // Push notification to the customer about status change
+    try {
+      if (order.customerUsername) {
+        const custKey = `notifications:customer:${order.customerUsername}`;
+        const notif = {
+          event: 'order.status_changed',
+          timestamp: new Date().toISOString(),
+          data: {
+            orderId: order._id?.toString(),
+            vendorUsername: order.vendorUsername,
+            customerUsername: order.customerUsername,
+            status: order.status,
+            total: order.total || 0,
+          }
+        };
+        await client.rPush(custKey, JSON.stringify(notif));
+        await client.expire(custKey, 7 * 24 * 60 * 60);
+        const ind = `notification:order:${order._id?.toString()}:customer:${order.customerUsername}`;
+        await client.set(ind, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
+        console.log('📣 Sent order status notification to customer:', order.customerUsername);
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to push customer notification:', e.message);
+    }
+
+    console.log(`✅ Order ${orderId} status updated to "${status}" by vendor ${req.user.username}`);
+
+    // If moved to terminal status, remove any delayed-order notification from Redis and notify admins
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
+    if (terminalStatuses.includes(status)) {
+      try {
+        const individualKey = `notification:order:${orderId}`;
+        await deleteValue(individualKey);
+
+        // Remove from delayed orders list
+        const listKey = 'notifications:admin:delayed_orders';
+        try {
+          const all = await client.lRange(listKey, 0, -1);
+          const filtered = all.filter((str) => {
+            try {
+              const n = JSON.parse(str);
+              return n.data?.orderId !== orderId;
+            } catch (e) {
+              return true;
+            }
+          });
+          await client.del(listKey);
+          if (filtered.length > 0) {
+            await client.rPush(listKey, ...filtered);
+            await client.expire(listKey, 7 * 24 * 60 * 60);
+          }
+        } catch (e) {
+          console.error('⚠️ Error cleaning delayed orders list:', e.message);
+        }
+
+        // Broadcast to SSE clients so admin UI can remove the notification in real-time
+        try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: true, vendorUsername: req.user.username } }); } catch(e){}
+      } catch (e) {
+        console.error('⚠️ Error while clearing notification after status change:', e.message);
+      }
+    } else {
+      // Broadcast status update (non-terminal) to help clients reflect change
+      try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: false, vendorUsername: req.user.username } }); } catch(e){}
+    }
 
     res.json({ ok: true, order });
   } catch (error) {
@@ -214,6 +293,110 @@ router.get('/analytics', async (req, res) => {
   } catch (error) {
     console.error('Analytics error:', error);
     res.status(500).json({ ok: false, message: 'Failed to fetch analytics' });
+  }
+});
+
+// Get vendor's delayed orders
+// GET /api/vendor/delayed-orders
+router.get('/delayed-orders', async (req, res) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ ok: false, message: 'Vendor access required' });
+    }
+
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
+
+    // Find vendor's orders that are delayed
+    let delayedOrders = await Order.find({
+      vendorUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    }).sort({ createdAt: -1 });
+
+    // Filter out orders acknowledged by this vendor
+    const filtered = [];
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:vendor:${req.user.username}`;
+      const ack = await getValue(ackKey);
+      if (!ack) filtered.push(o);
+    }
+
+    console.log('⏱️ Found', filtered.length, 'delayed orders for vendor (after ack filter):', req.user.username);
+    res.json({ ok: true, delayedOrders: filtered, count: filtered.length });
+  } catch (error) {
+    console.error('Delayed orders error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to fetch delayed orders' });
+  }
+});
+
+// Acknowledge (clear) a delayed-order notification for this vendor
+router.post('/notifications/ack/:orderId', async (req, res) => {
+  try {
+    if (req.user.role !== 'vendor') return res.status(403).json({ ok: false, message: 'Vendor access required' });
+    const { orderId } = req.params;
+    // Verify ownership
+    const order = await Order.findOne({ _id: orderId, vendorUsername: req.user.username });
+    if (!order) return res.status(404).json({ ok: false, message: 'Order not found or access denied' });
+
+    const ackKey = `ack:order:${orderId}:vendor:${req.user.username}`;
+    // Set a 7 day TTL to avoid permanently hiding notifications
+    await setValue(ackKey, true, 7 * 24 * 60 * 60);
+
+    res.json({ ok: true, message: 'Acknowledged' });
+  } catch (error) {
+    console.error('Ack error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to acknowledge' });
+  }
+});
+
+// Get vendor notifications
+router.get('/notifications', async (req, res) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ ok: false, message: 'Vendor access required' });
+    }
+
+    const vendorKey = `notifications:vendor:${req.user.username}`;
+    const arr = await client.lRange(vendorKey, 0, -1);
+    const notifications = (arr || []).map((s) => {
+      try {
+        return JSON.parse(s);
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+  } catch (err) {
+    console.error('❌ Get vendor notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+});
+
+// Clear all vendor notifications
+router.delete('/notifications', async (req, res) => {
+  try {
+    if (req.user.role !== 'vendor') {
+      return res.status(403).json({ ok: false, message: 'Vendor access required' });
+    }
+
+    const vendorKey = `notifications:vendor:${req.user.username}`;
+    await client.del(vendorKey);
+
+    try {
+      const keys = await client.keys(`notification:*:vendor:${req.user.username}`);
+      if (keys && keys.length > 0) await client.del(...keys);
+    } catch (e) {
+      console.warn('⚠️ Failed to delete individual vendor notification keys:', e.message);
+    }
+
+    res.json({ ok: true, message: 'Vendor notifications cleared' });
+  } catch (err) {
+    console.error('❌ Clear vendor notifications error:', err.message);
+    res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
   }
 });
 
