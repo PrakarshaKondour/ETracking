@@ -180,48 +180,96 @@ router.post('/notifications/ack/:orderId', async (req, res) => {
   }
 });
 
-// Get customer notifications
+// Get customer notifications (delayed orders)
 router.get('/notifications', async (req, res) => {
   try {
     if (req.user.role !== 'customer') {
       return res.status(403).json({ ok: false, message: 'Customer access required' });
     }
 
-    const customerKey = `notifications:customer:${req.user.username}`;
-    const arr = await client.lRange(customerKey, 0, -1);
-    const notifications = (arr || []).map((s) => {
-      try {
-        return JSON.parse(s);
-      } catch (e) {
-        return null;
-      }
-    }).filter(Boolean);
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
 
-    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+    let delayedOrders = await Order.find({
+      customerUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    }).sort({ createdAt: -1 });
+
+    // Filter out orders acknowledged by this customer
+    const filtered = [];
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:customer:${req.user.username}`;
+      const ack = await getValue(ackKey);
+      if (!ack) filtered.push(o);
+    }
+
+    const notifications = filtered.map(o => ({
+      _notifType: 'order_delayed',
+      data: {
+        orderId: o._id?.toString(),
+        vendorUsername: o.vendorUsername,
+        status: o.status,
+        createdAt: o.createdAt,
+        total: o.total || 0
+      },
+      timestamp: new Date().toISOString()
+    }));
+
+    res.json({ ok: true, notifications, unreadCount: notifications.length });
   } catch (err) {
     console.error('❌ Get customer notifications error:', err.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
   }
 });
 
-// Clear all customer notifications
+// Customer SSE stream for real-time delayed-order notifications
+router.get('/notifications/stream', (req, res, next) => {
+  if (!req.headers.authorization && req.query && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, verifyToken, requireRole('customer'), (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders && res.flushHeaders();
+  res.write(':ok\n\n');
+  
+  import('../services/notificationService.js').then(mod => {
+    mod.addSseClient(res);
+    req.on('close', () => {
+      mod.removeSseClient(res);
+    });
+  }).catch(e => console.error('SSE setup error:', e));
+});
+
+// Clear all customer notifications (acknowledge all delayed orders)
 router.delete('/notifications', async (req, res) => {
   try {
     if (req.user.role !== 'customer') {
       return res.status(403).json({ ok: false, message: 'Customer access required' });
     }
 
-    const customerKey = `notifications:customer:${req.user.username}`;
-    await client.del(customerKey);
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
 
-    try {
-      const keys = await client.keys(`notification:*:customer:${req.user.username}`);
-      if (keys && keys.length > 0) await client.del(...keys);
-    } catch (e) {
-      console.warn('⚠️ Failed to delete individual customer notification keys:', e.message);
+    const delayedOrders = await Order.find({
+      customerUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    });
+
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:customer:${req.user.username}`;
+      await setValue(ackKey, true, 7 * 24 * 60 * 60);
     }
 
-    res.json({ ok: true, message: 'Customer notifications cleared' });
+    res.json({ ok: true, message: 'All notifications acknowledged' });
   } catch (err) {
     console.error('❌ Clear customer notifications error:', err.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });

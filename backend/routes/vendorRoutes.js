@@ -352,48 +352,96 @@ router.post('/notifications/ack/:orderId', async (req, res) => {
   }
 });
 
-// Get vendor notifications
+// Get vendor notifications (delayed orders)
 router.get('/notifications', async (req, res) => {
   try {
     if (req.user.role !== 'vendor') {
       return res.status(403).json({ ok: false, message: 'Vendor access required' });
     }
 
-    const vendorKey = `notifications:vendor:${req.user.username}`;
-    const arr = await client.lRange(vendorKey, 0, -1);
-    const notifications = (arr || []).map((s) => {
-      try {
-        return JSON.parse(s);
-      } catch (e) {
-        return null;
-      }
-    }).filter(Boolean);
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
 
-    res.json({ ok: true, data: { notifications, unreadCount: notifications.length } });
+    let delayedOrders = await Order.find({
+      vendorUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    }).sort({ createdAt: -1 });
+
+    // Filter out orders acknowledged by this vendor
+    const filtered = [];
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:vendor:${req.user.username}`;
+      const ack = await getValue(ackKey);
+      if (!ack) filtered.push(o);
+    }
+
+    const notifications = filtered.map(o => ({
+      _notifType: 'order_delayed',
+      data: {
+        orderId: o._id?.toString(),
+        customerUsername: o.customerUsername,
+        status: o.status,
+        createdAt: o.createdAt,
+        total: o.total || 0
+      },
+      timestamp: new Date().toISOString()
+    }));
+
+    res.json({ ok: true, notifications, unreadCount: notifications.length });
   } catch (err) {
     console.error('❌ Get vendor notifications error:', err.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
   }
 });
 
-// Clear all vendor notifications
+// Vendor SSE stream for real-time delayed-order notifications
+router.get('/notifications/stream', (req, res, next) => {
+  if (!req.headers.authorization && req.query && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, verifyToken, requireRole('vendor'), (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders && res.flushHeaders();
+  res.write(':ok\n\n');
+  
+  import('../services/notificationService.js').then(mod => {
+    mod.addSseClient(res);
+    req.on('close', () => {
+      mod.removeSseClient(res);
+    });
+  }).catch(e => console.error('SSE setup error:', e));
+});
+
+// Clear all vendor notifications (acknowledge all delayed orders)
 router.delete('/notifications', async (req, res) => {
   try {
     if (req.user.role !== 'vendor') {
       return res.status(403).json({ ok: false, message: 'Vendor access required' });
     }
 
-    const vendorKey = `notifications:vendor:${req.user.username}`;
-    await client.del(vendorKey);
+    const DELAY_THRESHOLD_HOURS = 24;
+    const now = new Date();
+    const thresholdTime = new Date(now - DELAY_THRESHOLD_HOURS * 60 * 60 * 1000);
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
 
-    try {
-      const keys = await client.keys(`notification:*:vendor:${req.user.username}`);
-      if (keys && keys.length > 0) await client.del(...keys);
-    } catch (e) {
-      console.warn('⚠️ Failed to delete individual vendor notification keys:', e.message);
+    const delayedOrders = await Order.find({
+      vendorUsername: req.user.username,
+      status: { $nin: terminalStatuses },
+      createdAt: { $lt: thresholdTime }
+    });
+
+    for (const o of delayedOrders) {
+      const ackKey = `ack:order:${o._id}:vendor:${req.user.username}`;
+      await setValue(ackKey, true, 7 * 24 * 60 * 60);
     }
 
-    res.json({ ok: true, message: 'Vendor notifications cleared' });
+    res.json({ ok: true, message: 'All notifications acknowledged' });
   } catch (err) {
     console.error('❌ Clear vendor notifications error:', err.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });

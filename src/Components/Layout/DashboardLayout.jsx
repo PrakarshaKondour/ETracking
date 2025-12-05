@@ -5,6 +5,7 @@ import { Outlet, useNavigate, NavLink } from "react-router-dom"
 import "./Layout.css"
 import { clearAuth, getUserRole } from "../../utils/auth"
 import { apiCall } from "../../utils/api"
+import NotificationDropdown from "../NotificationDropdown/NotificationDropdown"
 
 const DashboardLayout = () => {
   const navigate = useNavigate()
@@ -14,7 +15,6 @@ const DashboardLayout = () => {
     const saved = localStorage.getItem("darkMode")
     return saved !== null ? JSON.parse(saved) : true
   })
-  const [notificationCount, setNotificationCount] = useState(0)
 
   useEffect(() => {
     if (!role) navigate("/login", { replace: true })
@@ -36,25 +36,6 @@ const DashboardLayout = () => {
     }
     localStorage.setItem("darkMode", JSON.stringify(isDarkMode))
   }, [isDarkMode])
-
-    useEffect(() => {
-  async function loadNotificationCount() {
-    try {
-      const rolePath = role === 'admin' ? '/api/notifications' : `/api/${role}/notifications`;
-      const data = await apiCall(rolePath);
-
-      // 👇 handle both { data: { notifications } } and { notifications }
-      const list = data?.data?.notifications || data?.notifications || [];
-      setNotificationCount(list.length);
-    } catch (err) {
-      console.error("Failed to load notification count:", err);
-    }
-  }
-
-  loadNotificationCount();
-  const interval = setInterval(loadNotificationCount, 5000);
-  return () => clearInterval(interval);
-}, [role]);
 
   const handleLogout = () => {
     clearAuth()
@@ -154,17 +135,7 @@ const DashboardLayout = () => {
           </button>
 
           <div className="topbar-right">
-            <button
-              className="notification-bell"
-              onClick={() => navigate(`/${role}/notifications`)}
-              title="View Notifications"
-              aria-label="Notifications"
-            >
-              🔔
-              {notificationCount > 0 && (
-                <span className="notification-badge">{notificationCount > 9 ? "9+" : notificationCount}</span>
-              )}
-            </button>
+            <NotificationDropdown />
             <div className="role-label">{role?.toUpperCase() || ""}</div>
             <button className="logout-btn topbar-logout" onClick={handleLogout}>
               Logout
