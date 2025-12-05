@@ -4,6 +4,7 @@ import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Customer from '../models/customer.js';
 import Order from '../models/Order.js';
 import { deleteValue, setValue, getValue } from '../utils/redisHelper.js';
+import { default as client } from '../config/redis.js';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.use(requireRole('customer'));
 router.get('/profile', async (req, res) => {
   try {
     console.log('👤 Profile request from:', req.user.username);
-    
+
     if (req.user.role !== 'customer') {
       return res.status(403).json({ ok: false, message: 'Customer access required' });
     }
@@ -39,7 +40,7 @@ router.get('/profile', async (req, res) => {
 router.get('/orders', async (req, res) => {
   try {
     console.log('📦 Orders request from:', req.user.username);
-    
+
     if (req.user.role !== 'customer') {
       return res.status(403).json({ ok: false, message: 'Customer access required' });
     }
@@ -72,7 +73,7 @@ router.get('/orders/:orderId', async (req, res) => {
 router.get('/dashboard', async (req, res) => {
   try {
     console.log('📊 Customer dashboard from:', req.user.username);
-    
+
     if (req.user.role !== 'customer') {
       return res.status(403).json({ ok: false, message: 'Customer access required' });
     }
@@ -83,9 +84,9 @@ router.get('/dashboard', async (req, res) => {
     const totalSpent = (await Order.find({ customerUsername: req.user.username })).reduce((sum, order) => sum + (order.total || 0), 0);
 
     console.log('✅ Dashboard data for customer username:', req.user.username, '- Total orders:', totalOrders);
-    res.json({ 
-      ok: true, 
-      data: { recentOrders, totalOrders, totalSpent } 
+    res.json({
+      ok: true,
+      data: { recentOrders, totalOrders, totalSpent }
     });
   } catch (error) {
     console.error('Dashboard error:', error);

@@ -31,19 +31,19 @@ const Notifications = () => {
     let es
 
     async function loadNotifications() {
-        try {
-            const path =
-            role === "admin" ? "/api/notifications" : `/api/${role}/notifications`
-            const data = await apiCall(path)
+      try {
+        const path =
+          role === "admin" ? "/api/notifications" : `/api/${role}/notifications`
+        const data = await apiCall(path)
 
-            // 👇 Try both shapes: { data: { notifications } } and { notifications }
-            const list = data?.data?.notifications || data?.notifications || []
-            setNotifications(list)
-        } catch (err) {
-            console.error("Failed to load notifications:", err)
-        } finally {
-            setLoading(false)
-        }
+        // 👇 Try both shapes: { data: { notifications } } and { notifications }
+        const list = data?.data?.notifications || data?.notifications || []
+        setNotifications(list)
+      } catch (err) {
+        console.error("Failed to load notifications:", err)
+      } finally {
+        setLoading(false)
+      }
     }
 
 
@@ -99,7 +99,7 @@ const Notifications = () => {
       clearInterval(interval)
       try {
         es && es.close()
-      } catch (e) {}
+      } catch (e) { }
     }
   }, [role])
 
@@ -155,29 +155,45 @@ const Notifications = () => {
 
       {notifications.length === 0 ? (
         <div className="panel" style={{ textAlign: "center", padding: "48px 24px" }}>
-          <p style={{ color: "var(--text-secondary)", fontSize: "16px" }}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔔</div>
+          <p style={{ color: "var(--text-secondary)", fontSize: "16px", margin: 0 }}>
             No notifications yet
+          </p>
+          <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "8px" }}>
+            You're all caught up!
           </p>
         </div>
       ) : isAdmin ? (
         // ---------- ADMIN VIEW ----------
         <>
           {notifications.filter((n) => n._notifType === "order_delayed_escalation").length > 0 && (
-            <div className="panel" style={{ marginBottom: "20px", borderLeft: "4px solid #ef4444" }}>
+            <div className="panel" style={{
+              marginBottom: "20px",
+              borderLeft: "4px solid #ef4444",
+              background: isDarkMode
+                ? "linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)"
+                : "linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%)",
+              boxShadow: "0 2px 8px rgba(239, 68, 68, 0.1)"
+            }}>
               <h3
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  color: isDarkMode ? "#e8f4f8" : "#0f1419",
+                  color: isDarkMode ? "#fca5a5" : "#dc2626",
+                  marginTop: 0
                 }}
               >
+                <span style={{ fontSize: "20px" }}>⚠️</span>
                 Delayed Orders (Escalated)
                 <span
                   style={{
                     fontSize: "14px",
                     fontWeight: "bold",
-                    color: "#ef4444",
+                    background: "#ef4444",
+                    color: "white",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
                   }}
                 >
                   {notifications.filter((n) => n._notifType === "order_delayed_escalation").length}
@@ -190,48 +206,52 @@ const Notifications = () => {
                     <div
                       key={idx}
                       style={{
-                        padding: "12px",
-                        marginBottom: "8px",
-                        backgroundColor: isDarkMode ? "rgba(239, 68, 68, 0.1)" : "#fff5f5",
-                        borderRadius: "4px",
+                        padding: "16px",
+                        marginBottom: "12px",
+                        backgroundColor: isDarkMode ? "rgba(239, 68, 68, 0.15)" : "#ffffff",
+                        borderRadius: "8px",
                         borderLeft: "3px solid #ef4444",
                         color: isDarkMode ? "#e8f4f8" : "#0f1419",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                        transition: "all 0.2s ease",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateX(4px)"
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.2)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateX(0)"
+                        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)"
                       }}
                     >
-                      <div style={{ fontWeight: "700" }}>Order ID: {notif.data?.orderId}</div>
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: isDarkMode ? "#a0b0c0" : "#555",
-                          marginTop: "4px",
-                        }}
-                      >
-                        Vendor: {notif.data?.vendorUsername}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <span style={{ fontSize: "18px" }}>📦</span>
+                        <div style={{ fontWeight: "700", fontSize: "15px" }}>Order ID: {notif.data?.orderId}</div>
                       </div>
                       <div
                         style={{
                           fontSize: "14px",
-                          color: isDarkMode ? "#a0b0c0" : "#555",
+                          color: isDarkMode ? "#cbd5e1" : "#64748b",
+                          marginTop: "6px",
+                          display: "grid",
+                          gap: "4px"
                         }}
                       >
-                        Customer: {notif.data?.customerUsername}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: isDarkMode ? "#a0b0c0" : "#555",
-                        }}
-                      >
-                        Status: {notif.data?.status}
+                        <div>👤 Vendor: <strong>{notif.data?.vendorUsername}</strong></div>
+                        <div>🛒 Customer: <strong>{notif.data?.customerUsername}</strong></div>
+                        <div>📊 Status: <strong>{notif.data?.status}</strong></div>
                       </div>
                       <div
                         style={{
                           fontSize: "12px",
-                          color: isDarkMode ? "#7a8a9a" : "#888",
-                          marginTop: "8px",
+                          color: isDarkMode ? "#94a3b8" : "#94a3b8",
+                          marginTop: "12px",
+                          paddingTop: "8px",
+                          borderTop: `1px solid ${isDarkMode ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.3)"}`,
                         }}
                       >
-                        Created:{" "}
+                        🕐 Created:{" "}
                         {notif.data?.createdAt
                           ? new Date(notif.data.createdAt).toLocaleString()
                           : ""}
@@ -243,21 +263,33 @@ const Notifications = () => {
           )}
 
           {notifications.filter((n) => n._notifType === "vendor_registration").length > 0 && (
-            <div className="panel" style={{ marginBottom: "20px", borderLeft: "4px solid #f59e0b" }}>
+            <div className="panel" style={{
+              marginBottom: "20px",
+              borderLeft: "4px solid #f59e0b",
+              background: isDarkMode
+                ? "linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)"
+                : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+              boxShadow: "0 2px 8px rgba(245, 158, 11, 0.1)"
+            }}>
               <h3
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",
-                  color: isDarkMode ? "#e8f4f8" : "#0f1419",
+                  color: isDarkMode ? "#fcd34d" : "#d97706",
+                  marginTop: 0
                 }}
               >
+                <span style={{ fontSize: "20px" }}>👥</span>
                 Pending Vendor Approvals
                 <span
                   style={{
                     fontSize: "14px",
                     fontWeight: "bold",
-                    color: "#f59e0b",
+                    background: "#f59e0b",
+                    color: "white",
+                    padding: "2px 8px",
+                    borderRadius: "12px",
                   }}
                 >
                   {notifications.filter((n) => n._notifType === "vendor_registration").length}
@@ -270,52 +302,56 @@ const Notifications = () => {
                     <div
                       key={idx}
                       style={{
-                        padding: "12px",
-                        marginBottom: "8px",
-                        backgroundColor: isDarkMode ? "rgba(245, 158, 11, 0.1)" : "#fef3c7",
-                        borderRadius: "4px",
+                        padding: "16px",
+                        marginBottom: "12px",
+                        backgroundColor: isDarkMode ? "rgba(245, 158, 11, 0.15)" : "#ffffff",
+                        borderRadius: "8px",
                         borderLeft: "3px solid #f59e0b",
                         color: isDarkMode ? "#e8f4f8" : "#0f1419",
+                        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                        transition: "all 0.2s ease",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateX(4px)"
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(245, 158, 11, 0.2)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateX(0)"
+                        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)"
                       }}
                     >
-                      <div style={{ fontWeight: "bold" }}>
-                        {notif.data?.companyName || "New Vendor"}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: isDarkMode ? "#a0b0c0" : "#555",
-                          marginTop: "4px",
-                        }}
-                      >
-                        Username: {notif.data?.username}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "14px",
-                          color: isDarkMode ? "#a0b0c0" : "#555",
-                        }}
-                      >
-                        Email: {notif.data?.email}
-                      </div>
-                      {notif.data?.phone && (
-                        <div
-                          style={{
-                            fontSize: "14px",
-                            color: isDarkMode ? "#a0b0c0" : "#555",
-                          }}
-                        >
-                          Phone: {notif.data?.phone}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <span style={{ fontSize: "18px" }}>🏢</span>
+                        <div style={{ fontWeight: "700", fontSize: "15px" }}>
+                          {notif.data?.companyName || "New Vendor"}
                         </div>
-                      )}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          color: isDarkMode ? "#cbd5e1" : "#64748b",
+                          marginTop: "6px",
+                          display: "grid",
+                          gap: "4px"
+                        }}
+                      >
+                        <div>👤 Username: <strong>{notif.data?.username}</strong></div>
+                        <div>📧 Email: <strong>{notif.data?.email}</strong></div>
+                        {notif.data?.phone && (
+                          <div>📞 Phone: <strong>{notif.data?.phone}</strong></div>
+                        )}
+                      </div>
                       <div
                         style={{
                           fontSize: "12px",
-                          color: isDarkMode ? "#7a8a9a" : "#888",
-                          marginTop: "8px",
+                          color: isDarkMode ? "#94a3b8" : "#94a3b8",
+                          marginTop: "12px",
+                          paddingTop: "8px",
+                          borderTop: `1px solid ${isDarkMode ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.3)"}`,
                         }}
                       >
-                        Registered:{" "}
+                        🕐 Registered:{" "}
                         {notif.timestamp
                           ? new Date(notif.timestamp).toLocaleString()
                           : ""}
@@ -328,82 +364,183 @@ const Notifications = () => {
         </>
       ) : (
         // ---------- VENDOR / CUSTOMER VIEW ----------
-        <div className="panel">
-          <h3 style={{ marginTop: 0 }}>
-            {role === "vendor" ? "Vendor Notifications" : "Your Notifications"}
-          </h3>
-          <div style={{ marginTop: 12 }}>
-            {notifications.map((notif, idx) => {
-              const ts =
-                notif.timestamp ||
-                notif.createdAt ||
-                notif.data?.createdAt ||
-                null
+        <div style={{ display: "grid", gap: "12px" }}>
+          {notifications.map((notif, idx) => {
+            const ts =
+              notif.timestamp ||
+              notif.createdAt ||
+              notif.data?.createdAt ||
+              null
 
-              const title =
-                notif.title ||
-                notif._notifType ||
-                notif.type ||
-                (role === "vendor" ? "Order Update" : "Update")
+            const title =
+              notif.title ||
+              notif._notifType ||
+              notif.type ||
+              (role === "vendor" ? "Order Update" : "Update")
 
-              const message =
-                notif.message ||
-                notif.data?.message ||
-                notif.description ||
-                ""
+            const message =
+              notif.message ||
+              notif.data?.message ||
+              notif.description ||
+              ""
 
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    padding: "12px",
-                    marginBottom: "10px",
-                    borderRadius: "6px",
-                    border: "1px solid rgba(148, 163, 184, 0.4)",
-                    backgroundColor: isDarkMode ? "rgba(15, 23, 42, 0.9)" : "#ffffff",
-                  }}
-                >
-                  <div style={{ fontWeight: "600", marginBottom: 4 }}>{title}</div>
-                  {message && (
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: isDarkMode ? "#cbd5f5" : "#4b5563",
-                        marginBottom: 4,
-                      }}
-                    >
-                      {message}
-                    </div>
-                  )}
+            // Determine notification type for styling
+            const isDelayed = notif._notifType === "order_delayed_escalation" || title.toLowerCase().includes("delay")
+            const isUrgent = notif.priority === "high" || isDelayed
 
-                  {notif.data && !message && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: isDarkMode ? "#9ca3af" : "#6b7280",
-                        whiteSpace: "pre-wrap",
-                        marginTop: 4,
-                      }}
-                    >
-                      {JSON.stringify(notif.data, null, 2)}
-                    </div>
-                  )}
+            const borderColor = isUrgent ? "#ef4444" : "#3b82f6"
+            const iconEmoji = isDelayed ? "⏱️" : "📬"
 
-                  {ts && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: isDarkMode ? "#9ca3af" : "#9ca3af",
-                        marginTop: 6,
-                      }}
-                    >
-                      {new Date(ts).toLocaleString()}
-                    </div>
+            return (
+              <div
+                key={idx}
+                style={{
+                  padding: "16px",
+                  borderRadius: "8px",
+                  border: `1px solid ${isDarkMode ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.3)"}`,
+                  borderLeft: `4px solid ${borderColor}`,
+                  backgroundColor: isDarkMode
+                    ? "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)"
+                    : "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                  transition: "all 0.2s ease",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)"
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${isUrgent ? "rgba(239, 68, 68, 0.2)" : "rgba(59, 130, 246, 0.2)"}`
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)"
+                  e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>{iconEmoji}</span>
+                  <div style={{
+                    fontWeight: "600",
+                    fontSize: "15px",
+                    color: isDarkMode ? "#e2e8f0" : "#0f172a"
+                  }}>
+                    {title}
+                  </div>
+                  {isUrgent && (
+                    <span style={{
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                      background: "#ef4444",
+                      color: "white",
+                      padding: "2px 6px",
+                      borderRadius: "10px",
+                      marginLeft: "auto"
+                    }}>
+                      URGENT
+                    </span>
                   )}
                 </div>
-              )
-            })}
-          </div>
+                {message && (
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: isDarkMode ? "#cbd5e1" : "#475569",
+                      marginBottom: "8px",
+                      lineHeight: "1.5"
+                    }}
+                  >
+                    {message}
+                  </div>
+                )}
+
+                {notif.data && !message && (
+                  <div style={{ marginTop: "12px" }}>
+                    {notif.data.orderId ? (
+                      <div style={{
+                        display: "grid",
+                        gap: "8px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#cbd5e1" : "#475569",
+                        background: isDarkMode ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.03)",
+                        padding: "12px",
+                        borderRadius: "6px"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: isDarkMode ? "#94a3b8" : "#64748b" }}>Order ID:</span>
+                          <span style={{ fontWeight: "600", fontFamily: "monospace" }}>{notif.data.orderId}</span>
+                        </div>
+
+                        {notif.data.status && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: isDarkMode ? "#94a3b8" : "#64748b" }}>Status:</span>
+                            <span style={{
+                              fontWeight: "600",
+                              textTransform: "capitalize",
+                              color: notif.data.status === 'delivered' ? '#10b981' :
+                                notif.data.status === 'cancelled' ? '#ef4444' : '#3b82f6'
+                            }}>
+                              {notif.data.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {notif.data.total && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: isDarkMode ? "#94a3b8" : "#64748b" }}>Total:</span>
+                            <span style={{ fontWeight: "600" }}>${Number(notif.data.total).toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {role === 'vendor' && notif.data.customerUsername && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: isDarkMode ? "#94a3b8" : "#64748b" }}>Customer:</span>
+                            <span style={{ fontWeight: "500" }}>{notif.data.customerUsername}</span>
+                          </div>
+                        )}
+
+                        {role === 'customer' && notif.data.vendorUsername && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: isDarkMode ? "#94a3b8" : "#64748b" }}>Vendor:</span>
+                            <span style={{ fontWeight: "500" }}>{notif.data.vendorUsername}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: isDarkMode ? "#94a3b8" : "#64748b",
+                          whiteSpace: "pre-wrap",
+                          background: isDarkMode ? "rgba(0, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.03)",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          fontFamily: "monospace"
+                        }}
+                      >
+                        {JSON.stringify(notif.data, null, 2)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {ts && (
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: isDarkMode ? "#94a3b8" : "#94a3b8",
+                      marginTop: "12px",
+                      paddingTop: "8px",
+                      borderTop: `1px solid ${isDarkMode ? "rgba(148, 163, 184, 0.2)" : "rgba(148, 163, 184, 0.3)"}`,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    <span>🕐</span>
+                    {new Date(ts).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

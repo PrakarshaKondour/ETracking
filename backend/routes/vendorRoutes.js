@@ -106,6 +106,63 @@ router.patch('/orders/:orderId/status', async (req, res) => {
     order.status = status;
     await order.save();
 
+    // Clean up old delayed order notifications for this order before adding new notification
+    try {
+      const orderId = order._id?.toString();
+
+      // Remove old notifications from vendor list
+      const vendorKey = `notifications:vendor:${order.vendorUsername}`;
+      try {
+        const vendorNotifs = await client.lRange(vendorKey, 0, -1);
+        const filteredVendor = vendorNotifs.filter((str) => {
+          try {
+            const n = JSON.parse(str);
+            return n.data?.orderId !== orderId;
+          } catch (e) {
+            return true;
+          }
+        });
+        if (filteredVendor.length !== vendorNotifs.length) {
+          await client.del(vendorKey);
+          if (filteredVendor.length > 0) {
+            await client.rPush(vendorKey, ...filteredVendor);
+            await client.expire(vendorKey, 7 * 24 * 60 * 60);
+          }
+          console.log('🧹 Removed old vendor notification for order:', orderId);
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to clean vendor notifications:', e.message);
+      }
+
+      // Remove old notifications from customer list
+      if (order.customerUsername) {
+        const customerKey = `notifications:customer:${order.customerUsername}`;
+        try {
+          const customerNotifs = await client.lRange(customerKey, 0, -1);
+          const filteredCustomer = customerNotifs.filter((str) => {
+            try {
+              const n = JSON.parse(str);
+              return n.data?.orderId !== orderId;
+            } catch (e) {
+              return true;
+            }
+          });
+          if (filteredCustomer.length !== customerNotifs.length) {
+            await client.del(customerKey);
+            if (filteredCustomer.length > 0) {
+              await client.rPush(customerKey, ...filteredCustomer);
+              await client.expire(customerKey, 7 * 24 * 60 * 60);
+            }
+            console.log('🧹 Removed old customer notification for order:', orderId);
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to clean customer notifications:', e.message);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to clean old notifications:', e.message);
+    }
+
     // Push notification to the customer about status change
     try {
       if (order.customerUsername) {
@@ -133,7 +190,16 @@ router.patch('/orders/:orderId/status', async (req, res) => {
 
     console.log(`✅ Order ${orderId} status updated to "${status}" by vendor ${req.user.username}`);
 
-    // If moved to terminal status, remove any delayed-order notification from Redis and notify admins
+    // Clear vendor's acknowledgment key so delay notification refreshes
+    // This ensures that when vendor updates status, the delay notification disappears
+    try {
+      const ackKey = `ack:order:${orderId}:vendor:${req.user.username}`;
+      await deleteValue(ackKey);
+    } catch (e) {
+      console.warn('⚠️ Failed to clear vendor ack key:', e.message);
+    }
+
+    // If moved to terminal status, also remove any delayed-order notification from Redis
     const terminalStatuses = ['delivered', 'cancelled', 'returned'];
     if (terminalStatuses.includes(status)) {
       try {
@@ -162,13 +228,13 @@ router.patch('/orders/:orderId/status', async (req, res) => {
         }
 
         // Broadcast to SSE clients so admin UI can remove the notification in real-time
-        try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: true, vendorUsername: req.user.username } }); } catch(e){}
+        try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: true, vendorUsername: req.user.username } }); } catch (e) { }
       } catch (e) {
         console.error('⚠️ Error while clearing notification after status change:', e.message);
       }
     } else {
       // Broadcast status update (non-terminal) to help clients reflect change
-      try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: false, vendorUsername: req.user.username } }); } catch(e){}
+      try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: false, vendorUsername: req.user.username } }); } catch (e) { }
     }
 
     res.json({ ok: true, order });

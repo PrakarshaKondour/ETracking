@@ -6,6 +6,7 @@ import { apiCall } from "../../utils/api"
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null)
+  const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
