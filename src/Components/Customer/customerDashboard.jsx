@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import "../../Components/Layout/Page.css"
 import { apiCall } from "../../utils/api"
 
@@ -12,11 +13,11 @@ const CustomerDashboard = () => {
     let mounted = true
     async function load() {
       try {
-        const res = await apiCall("/api/customer/dashboard")
+        const dashResp = await apiCall("/api/customer/dashboard")
         if (!mounted) return
-        setData(res.data || {})
+        setData(dashResp.data || {})
       } catch (e) {
-        console.error("Dashboard fetch error:", e)
+        console.error("Dashboard error:", e)
         if (mounted) setData({})
       } finally {
         if (mounted) setLoading(false)
@@ -27,6 +28,8 @@ const CustomerDashboard = () => {
       mounted = false
     }
   }, [])
+
+  const navigate = useNavigate()
 
   if (loading)
     return (

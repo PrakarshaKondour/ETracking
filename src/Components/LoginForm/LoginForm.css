@@ -9,7 +9,6 @@
   --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark mode variables for login page */
 html.dark-mode {
   --primary: #e8ecf1;
   --accent: #2dd4bf;
@@ -20,10 +19,7 @@ html.dark-mode {
   --text-secondary: #9ca3af;
 }
 
-/* Global box sizing */
-*,
-*::before,
-*::after {
+* {
   box-sizing: border-box;
 }
 
@@ -36,17 +32,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Page background + centering */
 body {
   background: linear-gradient(135deg, var(--background) 0%, #f0f2f5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px; /* so on very small heights it doesn’t stick to edges */
+  padding: 24px 16px;
   transition: background 0.3s ease;
+  min-height: 100vh;
 }
 
-/* Dark mode background gradient */
 html.dark-mode body {
   background: linear-gradient(135deg, #0f1419 0%, #1a2a3a 100%);
 }
@@ -84,8 +79,9 @@ html.dark-mode .wrapper:hover {
   font-weight: 700;
   letter-spacing: -0.3px;
 }
+
 html.dark-mode .wrapper h2 {
-  color: #ffffff;   /* Pure white for perfect contrast */
+  color: #ffffff;
 }
 
 .input-field {
@@ -107,7 +103,6 @@ html.dark-mode .wrapper h2 {
   font-weight: 500;
 }
 
-/* Dark mode input styling */
 html.dark-mode .input-field input,
 html.dark-mode .input-field select {
   color: var(--text-primary);
@@ -128,6 +123,12 @@ html.dark-mode .input-field select {
 
 html.dark-mode .input-field select {
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+/* Fixed select dropdown appearance in dark mode */
+html.dark-mode .input-field select option {
+  background: var(--surface);
+  color: var(--text-primary);
 }
 
 .input-field input::placeholder {
@@ -283,7 +284,6 @@ html.dark-mode .btn.secondary:hover {
   text-decoration: underline;
 }
 
-/* Dark mode error message styling */
 [style*="color: crimson"] {
   color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.05);
@@ -334,7 +334,6 @@ html.dark-mode [style*="color: crimson"] {
   margin-top: -4px;
 }
 
-/* Responsive tweaks */
 @media (max-width: 640px) {
   body {
     padding: 16px;

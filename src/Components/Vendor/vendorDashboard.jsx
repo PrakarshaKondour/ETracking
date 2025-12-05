@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import "../../Components/Layout/Page.css"
 import { apiCall } from "../../utils/api"
 
@@ -21,9 +22,9 @@ const VendorDashboard = () => {
     let mounted = true
     async function load() {
       try {
-        const res = await apiCall("/api/vendor/dashboard")
+        const dashResp = await apiCall("/api/vendor/dashboard")
         if (!mounted) return
-        setData(res.data || {})
+        setData(dashResp.data || {})
       } catch (e) {
         console.error("Dashboard error:", e)
         if (mounted) setData({})
@@ -36,6 +37,8 @@ const VendorDashboard = () => {
       mounted = false
     }
   }, [username])
+
+  const navigate = useNavigate()
 
   if (loading)
     return (

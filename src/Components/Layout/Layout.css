@@ -22,7 +22,6 @@
   --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Fix dark mode selector to properly match html.dark-mode */
 html.dark-mode {
   --primary: #0f1419;
   --primary-light: #1a2332;
@@ -53,15 +52,29 @@ body {
   background-color: var(--background);
   color: var(--text-primary);
   transition: var(--transition-base);
+  margin: 0;
+  padding: 0;
 }
 
 .app-shell {
   display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-inner {
-  min-height: 100vh;
-  height: 100%;
+  min-height: 100%;
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%);
   color: #e8f4f8;
   padding: 28px 20px;
@@ -98,6 +111,7 @@ body {
   transition: var(--transition-base);
   cursor: pointer;
   border-left: 2px solid transparent;
+  display: block;
 }
 
 .side-link:hover {
@@ -106,7 +120,7 @@ body {
   color: var(--accent-light);
 }
 
-.side-link[aria-current="true"],
+.side-link[aria-current="page"],
 .side-link.active {
   background: rgba(45, 212, 191, 0.15);
   border-left-color: var(--accent);
@@ -191,10 +205,11 @@ body {
 
 .main-area {
   flex: 1;
-  margin-left: 0;
+  margin-left: 280px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .topbar {
@@ -209,10 +224,11 @@ body {
   z-index: 900;
   box-shadow: var(--shadow-sm);
   transition: var(--transition-base);
+  flex-shrink: 0;
 }
 
 .hamburger {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 42px;
@@ -286,25 +302,67 @@ body {
   border-color: rgba(45, 212, 191, 0.4);
 }
 
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: var(--surface-hover);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 20px;
+  transition: var(--transition-base);
+  margin-right: 12px;
+}
+
+.notification-bell:hover {
+  background: var(--background-alt);
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid var(--surface);
+}
+
 .content {
   padding: 32px;
-  min-height: calc(100vh - 70px);
-  box-sizing: border-box;
   flex: 1;
+  box-sizing: border-box;
   background: var(--background);
   color: var(--text-primary);
   transition: var(--transition-base);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (min-width: 880px) {
+/* Improved responsive design for mobile */
+@media (max-width: 880px) {
   .sidebar {
-    width: 280px;
     position: fixed;
     left: 0;
     top: 0;
     height: 100vh;
-    overflow-y: auto;
-    z-index: 1000;
+    z-index: 1050;
+    width: 0;
+    overflow: hidden;
+    transition: var(--transition-base);
   }
 
   .sidebar.open {
@@ -312,15 +370,11 @@ body {
   }
 
   .main-area {
-    margin-left: 280px;
-  }
-
-  .app-shell {
-    position: relative;
+    margin-left: 0;
   }
 
   .hamburger {
-    display: none;
+    display: inline-flex;
   }
 }
 
@@ -339,23 +393,67 @@ body {
     padding: 12px 16px;
   }
 
-  .main-area {
-    margin-left: 0;
+  .hamburger {
+    width: 36px;
+    height: 36px;
   }
 
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    z-index: 1050;
-    width: 0;
-    overflow: hidden;
-    transition: var(--transition-base);
+  .topbar-right {
+    gap: 8px;
   }
 
-  .sidebar.open {
-    width: 280px;
+  .notification-bell {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .role-label {
+    font-size: 11px;
+  }
+
+  .logout-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 12px;
+  }
+
+  .topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .notification-bell {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-right: 6px;
+  }
+
+  .notification-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    top: -4px;
+    right: -4px;
+  }
+
+  .logout-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .role-label {
+    display: none;
   }
 }
 
