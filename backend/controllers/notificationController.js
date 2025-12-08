@@ -32,8 +32,23 @@ export async function getAdminNotifications(req, res) {
       }
     }).filter(Boolean);
 
+    // Fetch order update notifications (e.g. status reverted)
+    const updatesKey = 'notifications:admin:order_updates';
+    const updateStrings = await client.lRange(updatesKey, 0, -1);
+
+    const updateNotifications = (updateStrings || []).map((s) => {
+      try {
+        const obj = JSON.parse(s);
+        // ensure type is set
+        if (!obj._notifType) obj._notifType = 'order_update';
+        return obj;
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
     // Merge and sort by timestamp desc
-    const notifications = [...delayedNotifications, ...vendorNotifications].sort((a, b) => {
+    const notifications = [...delayedNotifications, ...vendorNotifications, ...updateNotifications].sort((a, b) => {
       return new Date(b.timestamp) - new Date(a.timestamp);
     });
 
@@ -112,10 +127,12 @@ export async function clearAllNotifications(req, res) {
   try {
     const vendorListKey = 'notifications:admin:vendor_registrations';
     const delayedListKey = 'notifications:admin:delayed_orders';
+    const updatesListKey = 'notifications:admin:order_updates';
 
     // Delete both lists
     await client.del(vendorListKey);
     await client.del(delayedListKey);
+    await client.del(updatesListKey);
 
     // Delete individual notification keys
     try {
@@ -228,5 +245,5 @@ export async function clearCustomerNotifications(req, res) {
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
   }
 }
-  
+
 export default { getAdminNotifications, clearNotification, clearOrderNotification, clearAllNotifications, getVendorNotifications, clearVendorNotifications, getCustomerNotifications, clearCustomerNotifications };

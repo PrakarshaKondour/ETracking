@@ -103,67 +103,56 @@ router.patch('/orders/:orderId/status', async (req, res) => {
       });
     }
 
+    const prevStatus = order.status;
     order.status = status;
     await order.save();
 
-    // Clean up old delayed order notifications for this order before adding new notification
-    try {
-      const orderId = order._id?.toString();
+    // ✅ NEW: Use the comprehensive cleanup function to remove ALL notifications for this order
+    const { clearOrderNotifications } = await import('../services/notificationService.js');
+    await clearOrderNotifications(orderId);
 
-      // Remove old notifications from vendor list
-      const vendorKey = `notifications:vendor:${order.vendorUsername}`;
+    // ✅ NEW: If vendor reverts status to 'ordered', notify Admin and Vendor
+    if (status === 'ordered') {
       try {
-        const vendorNotifs = await client.lRange(vendorKey, 0, -1);
-        const filteredVendor = vendorNotifs.filter((str) => {
-          try {
-            const n = JSON.parse(str);
-            return n.data?.orderId !== orderId;
-          } catch (e) {
-            return true;
+        const notif = {
+          _notifType: 'order_update',
+          event: 'order.status_reverted',
+          title: 'Order Status Reverted',
+          message: `Order #${orderId} status was reverted to "ordered" by vendor ${req.user.username}.`,
+          priority: 'high',
+          timestamp: new Date().toISOString(),
+          data: {
+            orderId,
+            vendorUsername: req.user.username,
+            customerUsername: order.customerUsername,
+            prevStatus,
+            newStatus: status,
+            total: order.total
           }
-        });
-        if (filteredVendor.length !== vendorNotifs.length) {
-          await client.del(vendorKey);
-          if (filteredVendor.length > 0) {
-            await client.rPush(vendorKey, ...filteredVendor);
-            await client.expire(vendorKey, 7 * 24 * 60 * 60);
-          }
-          console.log('🧹 Removed old vendor notification for order:', orderId);
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to clean vendor notifications:', e.message);
-      }
+        };
+        const str = JSON.stringify(notif);
 
-      // Remove old notifications from customer list
-      if (order.customerUsername) {
-        const customerKey = `notifications:customer:${order.customerUsername}`;
-        try {
-          const customerNotifs = await client.lRange(customerKey, 0, -1);
-          const filteredCustomer = customerNotifs.filter((str) => {
-            try {
-              const n = JSON.parse(str);
-              return n.data?.orderId !== orderId;
-            } catch (e) {
-              return true;
-            }
-          });
-          if (filteredCustomer.length !== customerNotifs.length) {
-            await client.del(customerKey);
-            if (filteredCustomer.length > 0) {
-              await client.rPush(customerKey, ...filteredCustomer);
-              await client.expire(customerKey, 7 * 24 * 60 * 60);
-            }
-            console.log('🧹 Removed old customer notification for order:', orderId);
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to clean customer notifications:', e.message);
-        }
+        // 1. Notify Admin
+        const adminKey = 'notifications:admin:order_updates';
+        await client.rPush(adminKey, str);
+        await client.expire(adminKey, 7 * 24 * 60 * 60);
+
+        // 2. Notify Vendor (Requester)
+        const vendorKey = `notifications:vendor:${req.user.username}`;
+        await client.rPush(vendorKey, str);
+        await client.expire(vendorKey, 7 * 24 * 60 * 60);
+
+        // Individual key for cleanup if needed
+        const indKey = `notification:order:${orderId}:reverted`;
+        await client.set(indKey, str, { EX: 7 * 24 * 60 * 60 });
+
+        console.log('📣 Notified Admin and Vendor about status revert:', orderId);
+      } catch (e) {
+        console.warn('⚠️ Failed to push status revert notification:', e.message);
       }
-    } catch (e) {
-      console.warn('⚠️ Failed to clean old notifications:', e.message);
     }
 
-    // Push notification to the customer about status change
+    // Push NEW notification to customer about the status change (only after cleanup)
     try {
       if (order.customerUsername) {
         const custKey = `notifications:customer:${order.customerUsername}`;
@@ -174,7 +163,8 @@ router.patch('/orders/:orderId/status', async (req, res) => {
             orderId: order._id?.toString(),
             vendorUsername: order.vendorUsername,
             customerUsername: order.customerUsername,
-            status: order.status,
+            prevStatus: prevStatus,
+            newStatus: status,
             total: order.total || 0,
           }
         };
@@ -188,10 +178,9 @@ router.patch('/orders/:orderId/status', async (req, res) => {
       console.warn('⚠️ Failed to push customer notification:', e.message);
     }
 
-    console.log(`✅ Order ${orderId} status updated to "${status}" by vendor ${req.user.username}`);
+    console.log(`✅ Order ${orderId} status updated from "${prevStatus}" to "${status}" by vendor ${req.user.username}`);
 
-    // Clear vendor's acknowledgment key so delay notification refreshes
-    // This ensures that when vendor updates status, the delay notification disappears
+    // Clear vendor's acknowledgment key so delayed notification doesn't re-appear
     try {
       const ackKey = `ack:order:${orderId}:vendor:${req.user.username}`;
       await deleteValue(ackKey);
@@ -199,42 +188,20 @@ router.patch('/orders/:orderId/status', async (req, res) => {
       console.warn('⚠️ Failed to clear vendor ack key:', e.message);
     }
 
-    // If moved to terminal status, also remove any delayed-order notification from Redis
-    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
-    if (terminalStatuses.includes(status)) {
-      try {
-        const individualKey = `notification:order:${orderId}`;
-        await deleteValue(individualKey);
-
-        // Remove from delayed orders list
-        const listKey = 'notifications:admin:delayed_orders';
-        try {
-          const all = await client.lRange(listKey, 0, -1);
-          const filtered = all.filter((str) => {
-            try {
-              const n = JSON.parse(str);
-              return n.data?.orderId !== orderId;
-            } catch (e) {
-              return true;
-            }
-          });
-          await client.del(listKey);
-          if (filtered.length > 0) {
-            await client.rPush(listKey, ...filtered);
-            await client.expire(listKey, 7 * 24 * 60 * 60);
-          }
-        } catch (e) {
-          console.error('⚠️ Error cleaning delayed orders list:', e.message);
+    // Broadcast to SSE clients (admin UI, real-time updates)
+    try {
+      broadcastSse({
+        type: 'order.updated',
+        data: {
+          orderId,
+          prevStatus,
+          newStatus: status,
+          vendorUsername: req.user.username,
+          customerUsername: order.customerUsername
         }
-
-        // Broadcast to SSE clients so admin UI can remove the notification in real-time
-        try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: true, vendorUsername: req.user.username } }); } catch (e) { }
-      } catch (e) {
-        console.error('⚠️ Error while clearing notification after status change:', e.message);
-      }
-    } else {
-      // Broadcast status update (non-terminal) to help clients reflect change
-      try { broadcastSse({ type: 'order.updated', data: { orderId, status, removed: false, vendorUsername: req.user.username } }); } catch (e) { }
+      });
+    } catch (e) {
+      console.warn('⚠️ Failed to broadcast SSE:', e.message);
     }
 
     res.json({ ok: true, order });

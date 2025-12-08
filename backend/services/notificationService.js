@@ -92,6 +92,19 @@ export async function startVendorNotificationConsumer() {
           // Import here to avoid circular dependency
           const client = await import('../config/redis.js').then(m => m.default);
 
+          // ✅ FIXED: Check if this vendor is already notified (idempotency)
+          const vendorIdKey = `vendor:registered:${content.data.vendorId}`;
+          const alreadyNotified = await client.get(vendorIdKey);
+          
+          if (alreadyNotified) {
+            console.log('⏭️ Vendor registration notification already processed, skipping:', content.data.vendorId);
+            channel.ack(msg);
+            return;
+          }
+
+          // Mark this vendor as notified
+          await client.set(vendorIdKey, '1', { EX: 86400 }); // 24h expiry
+
           // Store notification in Redis list (RPUSH for new notifications)
           const notificationKey = 'notifications:admin:vendor_registrations';
           const notificationStr = JSON.stringify(content);
@@ -122,7 +135,6 @@ export async function startVendorNotificationConsumer() {
  * Publish delayed order escalation notification into Redis for admins
  * Stores into list `notifications:admin:delayed_orders` and an individual key
  */
-// inside backend/services/notificationService.js — replace publishDelayedOrderNotification with:
 export async function publishDelayedOrderNotification(order) {
   try {
     const notificationKey = 'notifications:admin:delayed_orders';
@@ -189,4 +201,169 @@ export async function publishDelayedOrderNotification(order) {
   }
 }
 
-export default { publishVendorRegistered, startVendorNotificationConsumer, addSseClient, removeSseClient, broadcastSse };
+/**
+ * ✅ NEW: Remove vendor registration notification when vendor is approved/declined
+ * This prevents stale notifications
+ */
+export async function clearVendorRegistrationNotification(vendorId) {
+  try {
+    const notificationKey = 'notifications:admin:vendor_registrations';
+    const individualKey = `notification:${vendorId}`;
+
+    // Remove from individual key
+    await client.del(individualKey);
+
+    // Remove from list
+    const all = await client.lRange(notificationKey, 0, -1);
+    const filtered = (all || []).filter((str) => {
+      try {
+        const n = JSON.parse(str);
+        return n.data?.vendorId !== vendorId;
+      } catch (e) {
+        return true;
+      }
+    });
+
+    await client.del(notificationKey);
+    if (filtered.length > 0) {
+      await client.rPush(notificationKey, ...filtered);
+      await client.expire(notificationKey, 86400);
+    }
+
+    console.log('🗑️ Cleared vendor registration notification:', vendorId);
+  } catch (err) {
+    console.error('❌ Failed to clear vendor registration notification:', err.message);
+  }
+}
+
+/**
+ * ✅ NEW: Remove vendor status-changed notification when already acted upon
+ * This prevents duplicate notifications when vendor is re-approved or re-activated
+ */
+export async function clearVendorStatusNotification(vendorUsername) {
+  try {
+    const vendorKey = `notifications:vendor:${vendorUsername}`;
+    
+    // Remove all status-changed notifications for this vendor
+    const all = await client.lRange(vendorKey, 0, -1);
+    const filtered = (all || []).filter((str) => {
+      try {
+        const n = JSON.parse(str);
+        return n.event !== 'vendor.status_changed';
+      } catch (e) {
+        return true;
+      }
+    });
+
+    await client.del(vendorKey);
+    if (filtered.length > 0) {
+      await client.rPush(vendorKey, ...filtered);
+      await client.expire(vendorKey, 7 * 24 * 60 * 60);
+    }
+
+    console.log('🗑️ Cleared vendor status notification for:', vendorUsername);
+  } catch (err) {
+    console.error('❌ Failed to clear vendor status notification:', err.message);
+  }
+}
+
+/**
+ * ✅ NEW: Clear ALL notifications for a specific order across all roles and lists
+ * This is called when order status is updated to ensure no stale notifications remain
+ */
+export async function clearOrderNotifications(orderId) {
+  try {
+    console.log('🧹 Clearing all notifications for order:', orderId);
+    
+    // Remove from individual key
+    await client.del(`notification:order:${orderId}`);
+    
+    // Clear from delayed orders admin list
+    try {
+      const adminKey = 'notifications:admin:delayed_orders';
+      const adminNotifs = await client.lRange(adminKey, 0, -1);
+      const filteredAdmin = (adminNotifs || []).filter((str) => {
+        try {
+          const n = JSON.parse(str);
+          return n.data?.orderId !== orderId;
+        } catch (e) {
+          return true;
+        }
+      });
+      if (filteredAdmin.length !== (adminNotifs || []).length) {
+        await client.del(adminKey);
+        if (filteredAdmin.length > 0) {
+          await client.rPush(adminKey, ...filteredAdmin);
+          await client.expire(adminKey, 7 * 24 * 60 * 60);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to clear admin delayed orders notification:', e.message);
+    }
+    
+    // Find and clear vendor notifications for this order
+    try {
+      const vendorKeys = await client.keys(`notifications:vendor:*`);
+      for (const vendorKey of vendorKeys || []) {
+        const vendorNotifs = await client.lRange(vendorKey, 0, -1);
+        const filteredVendor = (vendorNotifs || []).filter((str) => {
+          try {
+            const n = JSON.parse(str);
+            return n.data?.orderId !== orderId;
+          } catch (e) {
+            return true;
+          }
+        });
+        if (filteredVendor.length !== (vendorNotifs || []).length) {
+          await client.del(vendorKey);
+          if (filteredVendor.length > 0) {
+            await client.rPush(vendorKey, ...filteredVendor);
+            await client.expire(vendorKey, 7 * 24 * 60 * 60);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to clear vendor notifications:', e.message);
+    }
+    
+    // Find and clear customer notifications for this order
+    try {
+      const customerKeys = await client.keys(`notifications:customer:*`);
+      for (const customerKey of customerKeys || []) {
+        const customerNotifs = await client.lRange(customerKey, 0, -1);
+        const filteredCustomer = (customerNotifs || []).filter((str) => {
+          try {
+            const n = JSON.parse(str);
+            return n.data?.orderId !== orderId;
+          } catch (e) {
+            return true;
+          }
+        });
+        if (filteredCustomer.length !== (customerNotifs || []).length) {
+          await client.del(customerKey);
+          if (filteredCustomer.length > 0) {
+            await client.rPush(customerKey, ...filteredCustomer);
+            await client.expire(customerKey, 7 * 24 * 60 * 60);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to clear customer notifications:', e.message);
+    }
+    
+    console.log('✅ All notifications cleared for order:', orderId);
+  } catch (err) {
+    console.error('❌ Failed to clear order notifications:', err.message);
+  }
+}
+
+export default { 
+  publishVendorRegistered, 
+  startVendorNotificationConsumer, 
+  addSseClient, 
+  removeSseClient, 
+  broadcastSse,
+  clearVendorRegistrationNotification,
+  clearVendorStatusNotification,
+  clearOrderNotifications
+};

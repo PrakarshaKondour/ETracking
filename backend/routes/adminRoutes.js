@@ -223,45 +223,43 @@ router.patch('/vendors/:username/approve', async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Vendor not found' });
     }
 
-    // Clear the notification from Redis (individual key)
-    const notificationKey = `notification:${vendor._id.toString()}`;
-    await deleteValue(notificationKey);
+    // ✅ NEW: Import and use the new cleanup functions
+    const { clearVendorRegistrationNotification, clearVendorStatusNotification } = 
+      await import('../services/notificationService.js').then(m => m.default ? { ...m.default } : m);
 
-    // Also remove from the notifications list so admin UI updates immediately
+    // Clear the pending registration notification (from admin list)
+    if (clearVendorRegistrationNotification) {
+      await clearVendorRegistrationNotification(vendor._id.toString());
+    }
+
+    // Clear any old status notifications from vendor list
+    if (clearVendorStatusNotification) {
+      await clearVendorStatusNotification(vendor.username);
+    }
+
+    console.log('🗑️ Cleared notifications for vendor:', vendor.username);
+
+    // Push a NEW status_changed notification so vendor knows they're approved
     try {
-      const listKey = 'notifications:admin:vendor_registrations';
-      const all = await client.lRange(listKey, 0, -1);
-      const filtered = all.filter((str) => {
-        try { const n = JSON.parse(str); return n.data?.vendorId !== vendor._id.toString(); } catch (e) { return true; }
-      });
-      await client.del(listKey);
-      if (filtered.length > 0) {
-        await client.rPush(listKey, ...filtered);
-        await client.expire(listKey, 86400);
-      }
-      console.log('🗑️ Cleared notification for vendor:', vendor.username);
-      try {
-        const vendorNotifKey = `notifications:vendor:${vendor.username}`;
-        const notif = {
-          event: 'vendor.status_changed',
-          timestamp: new Date().toISOString(),
-          data: {
-            vendorId: vendor._id?.toString(),
-            username: vendor.username,
-            email: vendor.email,
-            newStatus: vendor.status,
-          },
-        };
-        await client.rPush(vendorNotifKey, JSON.stringify(notif));
-        await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
-        const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
-        await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
-        console.log('📣 Notified vendor about status change:', vendor.username, vendor.status);
-      } catch (e) {
-        console.warn('⚠️ Failed to add vendor notification:', e.message);
-      }
-    } catch (err) {
-      console.error('⚠️ Failed to remove vendor notification from list:', err.message);
+      const vendorNotifKey = `notifications:vendor:${vendor.username}`;
+      const notif = {
+        event: 'vendor.status_changed',
+        timestamp: new Date().toISOString(),
+        data: {
+          vendorId: vendor._id?.toString(),
+          username: vendor.username,
+          email: vendor.email,
+          newStatus: vendor.status,
+          message: 'Your vendor account has been approved! You can now log in and manage orders.'
+        },
+      };
+      await client.rPush(vendorNotifKey, JSON.stringify(notif));
+      await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
+      const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
+      await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
+      console.log('📣 Notified vendor about approval:', vendor.username);
+    } catch (e) {
+      console.warn('⚠️ Failed to add vendor approval notification:', e.message);
     }
 
     res.json({ ok: true, data: vendor, message: 'Vendor approved successfully' });
@@ -282,45 +280,43 @@ router.patch('/vendors/:username/decline', async (req, res) => {
       return res.status(404).json({ ok: false, message: 'Vendor not found' });
     }
 
-    // Clear the notification from Redis (individual key)
-    const notificationKey = `notification:${vendor._id.toString()}`;
-    await deleteValue(notificationKey);
+    // ✅ NEW: Import and use the new cleanup functions
+    const { clearVendorRegistrationNotification, clearVendorStatusNotification } = 
+      await import('../services/notificationService.js').then(m => m.default ? { ...m.default } : m);
 
-    // Also remove from the notifications list so admin UI updates immediately
+    // Clear the pending registration notification (from admin list)
+    if (clearVendorRegistrationNotification) {
+      await clearVendorRegistrationNotification(vendor._id.toString());
+    }
+
+    // Clear any old status notifications from vendor list
+    if (clearVendorStatusNotification) {
+      await clearVendorStatusNotification(vendor.username);
+    }
+
+    console.log('🗑️ Cleared notifications for vendor:', vendor.username);
+
+    // Push a NEW status_changed notification so vendor knows they're declined
     try {
-      const listKey = 'notifications:admin:vendor_registrations';
-      const all = await client.lRange(listKey, 0, -1);
-      const filtered = all.filter((str) => {
-        try { const n = JSON.parse(str); return n.data?.vendorId !== vendor._id.toString(); } catch (e) { return true; }
-      });
-      await client.del(listKey);
-      if (filtered.length > 0) {
-        await client.rPush(listKey, ...filtered);
-        await client.expire(listKey, 86400);
-      }
-      console.log('🗑️ Cleared notification for vendor:', vendor.username);
-      try {
-        const vendorNotifKey = `notifications:vendor:${vendor.username}`;
-        const notif = {
-          event: 'vendor.status_changed',
-          timestamp: new Date().toISOString(),
-          data: {
-            vendorId: vendor._id?.toString(),
-            username: vendor.username,
-            email: vendor.email,
-            newStatus: vendor.status,
-          },
-        };
-        await client.rPush(vendorNotifKey, JSON.stringify(notif));
-        await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
-        const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
-        await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
-        console.log('📣 Notified vendor about status change:', vendor.username, vendor.status);
-      } catch (e) {
-        console.warn('⚠️ Failed to add vendor notification:', e.message);
-      }
-    } catch (err) {
-      console.error('⚠️ Failed to remove vendor notification from list:', err.message);
+      const vendorNotifKey = `notifications:vendor:${vendor.username}`;
+      const notif = {
+        event: 'vendor.status_changed',
+        timestamp: new Date().toISOString(),
+        data: {
+          vendorId: vendor._id?.toString(),
+          username: vendor.username,
+          email: vendor.email,
+          newStatus: vendor.status,
+          message: 'Your vendor account has been declined. Please contact support if you have questions.'
+        },
+      };
+      await client.rPush(vendorNotifKey, JSON.stringify(notif));
+      await client.expire(vendorNotifKey, 7 * 24 * 60 * 60);
+      const indKey = `notification:vendor:${vendor._id?.toString()}:status`;
+      await client.set(indKey, JSON.stringify(notif), { EX: 7 * 24 * 60 * 60 });
+      console.log('📣 Notified vendor about decline:', vendor.username);
+    } catch (e) {
+      console.warn('⚠️ Failed to add vendor decline notification:', e.message);
     }
 
     res.json({ ok: true, data: vendor, message: 'Vendor declined' });
