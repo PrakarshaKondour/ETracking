@@ -172,7 +172,7 @@ app.post('/login', async (req, res) => {
     let userId;
     if (user._id && typeof user._id.toString === 'function') {
       userId = user._id.toString();
-      console.log("📥 Login request received:", username, user.password);
+      console.log("📥 Login request received:", username);
 
     } else if (user._id) {
       userId = String(user._id);
@@ -180,6 +180,19 @@ app.post('/login', async (req, res) => {
       // Fallback: use username + timestamp for uniqueness (shouldn't happen)
       userId = `${user.username}_${Date.now()}`;
       console.warn('⚠️ User _id not found, using fallback ID for:', user.username);
+    }
+
+    // ✅ NEW: Invalidate any existing sessions for this user
+    // This ensures only one active session per user at a time
+    try {
+      // Try to get any old token
+      const oldToken = await getValue(`user:${userId}:token`);
+      if (oldToken) {
+        console.log(`⚠️ Existing session found for ${username}. Invalidating old session.`);
+        await deleteValue(`user:${userId}:token`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to check old session:', e.message);
     }
 
     // Ensure userId is unique - add timestamp if needed (but it should already be unique from _id)
@@ -193,7 +206,9 @@ app.post('/login', async (req, res) => {
 
     const secret = process.env.JWT_SECRET || 'your-secret-key';
     const token = jwt.sign(payload, secret, { expiresIn: '24h' });
-    await setValue(`user:${userId}:token`, token, 24 * 60 *60);
+    
+    // ✅ NEW: Store the new token in Redis with a 24-hour TTL
+    await setValue(`user:${userId}:token`, token, 24 * 60 * 60);
 
     console.log('🔐 Generated JWT token for user:', user.username, 'Role:', role, 'User ID:', userId);
     console.log('🔐 Token payload:', JSON.stringify(payload));
