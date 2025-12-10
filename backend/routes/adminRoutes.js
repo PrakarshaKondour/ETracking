@@ -115,6 +115,27 @@ router.get('/orders', async (req, res) => {
   }
 });
 
+// ✅ NEW: GET single order by ID (admin view)
+router.get('/orders/:orderId', async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, message: 'Admin access required' });
+    }
+
+    const { orderId } = req.params;
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ ok: false, message: 'Order not found' });
+    }
+
+    res.json({ ok: true, data: order });
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to fetch order' });
+  }
+});
+
 // ====== ANALYTICS ======
 router.get('/analytics', async (req, res) => {
   try {

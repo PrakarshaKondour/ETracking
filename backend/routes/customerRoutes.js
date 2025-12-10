@@ -4,7 +4,7 @@ import { verifyToken, requireRole } from '../middleware/authMiddleware.js';
 import Customer from '../models/customer.js';
 import Order from '../models/Order.js';
 import { deleteValue, setValue, getValue } from '../utils/redisHelper.js';
-import { default as client } from '../config/redis.js';
+import client from '../config/redis.js';
 
 const router = express.Router();
 
@@ -62,6 +62,7 @@ router.get('/orders/:orderId', async (req, res) => {
     const { orderId } = req.params;
     const order = await Order.findOne({ _id: orderId, customerUsername: req.user.username });
     if (!order) return res.status(404).json({ ok: false, message: 'Order not found' });
+    // ✅ FIX: Return consistent response format
     res.json({ ok: true, order });
   } catch (error) {
     console.error('Get order error:', error);
@@ -226,6 +227,79 @@ router.delete('/notifications', async (req, res) => {
   } catch (err) {
     console.error('❌ Clear customer notifications error:', err.message);
     res.status(500).json({ ok: false, message: 'Server error: ' + err.message });
+  }
+});
+
+// ✅ NEW: Cancel order endpoint
+// POST /api/customer/orders/:orderId/cancel
+router.post('/orders/:orderId/cancel', async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ ok: false, message: 'Customer access required' });
+    }
+
+    const { orderId } = req.params;
+    const { reason = 'Customer requested cancellation' } = req.body;
+
+    // Find and validate order ownership
+    const order = await Order.findOne({
+      _id: orderId,
+      customerUsername: req.user.username,
+    });
+
+    if (!order) {
+      return res.status(404).json({ ok: false, message: 'Order not found' });
+    }
+
+    // Cannot cancel if already delivered, cancelled, or returned
+    const terminalStatuses = ['delivered', 'cancelled', 'returned'];
+    if (terminalStatuses.includes(order.status)) {
+      return res.status(400).json({
+        ok: false,
+        message: `Cannot cancel order in ${order.status} status`,
+      });
+    }
+
+    // Update order status to cancelled
+    order.status = 'cancelled';
+    await order.save();
+
+    console.log(`✅ Order ${orderId} cancelled by customer ${req.user.username}`);
+
+    // ✅ NEW: Push notification to vendor about cancellation
+    try {
+      const vendorKey = `notifications:vendor:${order.vendorUsername}`;
+      const vendorNotif = {
+        event: 'order.cancelled',
+        timestamp: new Date().toISOString(),
+        data: {
+          orderId: order._id?.toString(),
+          customerUsername: order.customerUsername,
+          vendorUsername: order.vendorUsername,
+          reason,
+          message: `Customer cancelled order #${order._id?.toString().slice(-8)}`,
+        },
+      };
+      
+      await client.rPush(vendorKey, JSON.stringify(vendorNotif));
+      await client.expire(vendorKey, 7 * 24 * 60 * 60);
+      
+      const indKey = `notification:order:${order._id?.toString()}:vendor:${order.vendorUsername}`;
+      await client.set(indKey, JSON.stringify(vendorNotif), { EX: 7 * 24 * 60 * 60 });
+
+      console.log('📣 Sent cancellation notification to vendor:', order.vendorUsername);
+    } catch (e) {
+      console.warn('⚠️ Failed to notify vendor:', e.message);
+    }
+
+    res.json({
+      ok: true,
+      message: 'Order cancelled successfully',
+      data: { order },
+    });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ ok: false, message: 'Failed to cancel order' });
   }
 });
 
