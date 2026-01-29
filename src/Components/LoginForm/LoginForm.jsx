@@ -79,54 +79,71 @@ const LoginForm = () => {
   }, [navigate])
 
   return (
-    <div className="wrapper">
-      <form onSubmit={handleSubmit}>
-        <h2>Login</h2>
-        <div className="input-field">
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            type="text"
-            placeholder="Username"
-            required
-            disabled={loading}
-          />
-        </div>
-        <div className="input-field">
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            placeholder="Password"
-            required
-            disabled={loading}
-          />
+    <div className="login-page-container">
+      <div className="login-split-layout">
+        <div className="login-branding-section">
+          <div className="branding-content">
+            <h1>ETracking</h1>
+            <p className="catchy-text">Track your orders with ease and precision.</p>
+            <p className="sub-branding">Real-time updates, seamless management, and premium experience.</p>
+          </div>
+          <div className="branding-bg-overlay"></div>
         </div>
 
-        <div className="remember-forgot">
-          <label>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-              disabled={loading}
-            />{" "}
-            Remember me
-          </label>
-          <a href="#">Forgot Password?</a>
-        </div>
+        <div className="login-form-section">
+          <div className="wrapper">
+            <form onSubmit={handleSubmit}>
+              <h2>Welcome Back</h2>
+              <p className="form-subtitle">Please login to your account</p>
 
-        {error && <div style={{ color: "crimson", marginBottom: 12 }}>{error}</div>}
+              <div className="input-field">
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  type="text"
+                  placeholder="Username"
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="input-field">
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  placeholder="Password"
+                  required
+                  disabled={loading}
+                />
+              </div>
 
-        <button type="submit" className="btn" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-        <div className="register-link">
-          <p>
-            Don't have an account? <Link to="/register">Register</Link>
-          </p>
+              <div className="remember-forgot">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    disabled={loading}
+                  />{" "}
+                  Remember me
+                </label>
+                <a href="#">Forgot Password?</a>
+              </div>
+
+              {error && <div style={{ color: "crimson", marginBottom: 12 }}>{error}</div>}
+
+              <button type="submit" className="btn" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
+              </button>
+              <div className="register-link">
+                <p>
+                  Don't have an account? <Link to="/register">Register</Link>
+                </p>
+              </div>
+            </form>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }
