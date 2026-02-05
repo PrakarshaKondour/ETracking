@@ -5,20 +5,39 @@
 /.pnp
 .pnp.js
 
-# testing
+# build / test
+/build
 /coverage
 
-# production
-/build
-
-# misc
-.DS_Store
+# env / secrets (ALL environments)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
+# backend envs (explicit)
+backend/.env
+backend/.env.*
+
+# docker
+docker-compose.override.yml
+.env.docker
+
+# logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# certs / keys (SMTP / TLS)
+*.pem
+*.key
+*.crt
+*.p12
+
+# monitoring generated data
+grafana/data
+grafana/*.db
+
+# misc
+.DS_Store
+
